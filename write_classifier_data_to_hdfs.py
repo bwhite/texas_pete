@@ -18,6 +18,16 @@ def read_files(fns, prev_hashes):
             prev_hashes.add(data_hash)
             yield data_hash, data
 
+# Write vidoes
+videos = ['aladdin_videos']
+for video_name in videos:
+    fns = glob.glob('%s/%s/*' % (local_root, video_name))
+    random.shuffle(fns)
+    prev_hashes = set()
+    hadoopy.writetb('%s/video_%s' % (hdfs_root, video_name), read_files(fns, prev_hashes))
+    print('Unlabeled:[%s] Num[%d]' % (video_name, len(prev_hashes)))
+
+
 # Write unabled data (used for evaluation)
 unlabeled = ['flickr_small', 'flickr']
 for unlabeled_name in unlabeled:
