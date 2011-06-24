@@ -19,69 +19,81 @@ def run_videos():
 # HDFS Paths with data of the form (unique_string, binary_image_data
 data_root = '/user/brandyn/classifier_data/'
 
-train_photos_path = data_root + 'train_photos'
-train_nonphotos_path = data_root + 'train_nonphotos'
-train_indoors_path = data_root + 'train_indoors'
-train_outdoors_path = data_root + 'train_outdoors'
-train_objects_path = data_root + 'train_objects'
-train_nonobjects_path = data_root + 'train_nonobjects'
-train_pr0n_path = data_root + 'train_pr0n'
-train_nonpr0n_path = data_root + 'train_nonpr0n'
-train_faces_path = data_root + 'train_faces'
-train_nonfaces_path = data_root + 'train_nonfaces'
-
-test_photos_path = data_root + 'test_photos'
-test_nonphotos_path = data_root + 'test_nonphotos'
-test_indoors_path = data_root + 'test_indoors'
-test_outdoors_path = data_root + 'test_outdoors'
-test_objects_path = data_root + 'test_objects'
-test_nonobjects_path = data_root + 'test_nonobjects'
-test_pr0n_path = data_root + 'test_pr0n'
-test_nonpr0n_path = data_root + 'test_nonpr0n'
-test_faces_path = data_root + 'test_faces'
-test_nonfaces_path = data_root + 'test_nonfaces'
-
 
 def make_reports():
     pass
 
+FEATURE = 'meta_gist_spatial_hist'
+DATA = {'photos': {'pos': 'photos',
+                   'neg': 'nonphotos',
+                   'feature': FEATURE,
+                   'image_length': 256,
+                   'classifier': 'svmlinear',
+                   'labels_name': 'tp_indoor_labels.js'},
+        'indoors': {'pos': 'indoors',
+                    'neg': 'outdoors',
+                    'feature': FEATURE,
+                    'image_length': 256,
+                    'classifier': 'svmlinear'},
+        'objects': {'pos': 'objects',
+                    'neg': 'nonobjects',
+                    'feature': FEATURE,
+                    'image_length': 256,
+                    'classifier': 'svmlinear'},
+        'detected_faces': {'pos': 'detected_faces',
+                           'neg': 'detected_nonfaces',
+                           'feature': FEATURE,
+                           'image_length': 256,
+                           'classifier': 'svmlinear'},
+        'faces': {'pos': 'faces',
+                  'neg': 'nonfaces',
+                  'feature': 'eigenface',
+                  'image_length': 64,
+                  'classifier': 'svmlinear'},
+        'pr0n': {'pos': 'pr0n',
+                 'neg': 'nonpr0n',
+                 'feature': FEATURE,
+                 'image_length': 256,
+                 'classifier': 'svmlinear'}}
+
+
+CLASSIFIERS = ['photos', 'indoors', 'objects', 'detected_faces', 'pr0n']   # A classifier is learned for each of those
+CLUSTERS = [('photos', ['pos', 'neg']), ('indoors', ['pos', 'neg']),
+            ('objects', ['pos']), ('faces', ['pos']), ('pr0n', ['pos'])]   # Clustering is performed on each of those
+PHOTOS_SUBCLASSES = ['indoors', 'objects', 'pr0n']  # Each of these are derived from predicted photos
+
 
 def train():
     # HDFS Paths for Output
-    start_time = time.time()
-    root = '/user/brandyn/tp/image_cluster/run-%f/' % start_time
+    start_time = '%f' % time.time()
+    root = '/user/brandyn/tp/image_cluster/run-%s/' % start_time
 
     # Compute features for classifier train
-    picarus.vision.run_image_feature(train_photos_path, root + 'train_feat/photos', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(train_nonphotos_path, root + 'train_feat/nonphotos', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(train_indoors_path, root + 'train_feat/indoors', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(train_outdoors_path, root + 'train_feat/outdoors', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(train_objects_path, root + 'train_feat/objects', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(train_nonobjects_path, root + 'train_feat/nonobjects', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(train_pr0n_path, root + 'train_feat/pr0n', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(train_nonpr0n_path, root + 'train_feat/nonpr0n', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(train_faces_path, root + 'train_feat/faces', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(train_nonfaces_path, root + 'train_feat/nonfaces', 'meta_gist_spatial_hist', 256)
-
-    # Label images # TODO make one run of this per feature type as the training assumes the features are homogeneous
-    picarus.classify.run_classifier_labels(root + 'train_feat/photos', root + 'train_feat/nonphotos', root + 'labels/photos',
-                                  'photo', '', 'tp_photos_labels.js', 'svmlinear')
-    picarus.classify.run_classifier_labels(root + 'train_feat/indoors', root + 'train_feat/outdoors', root + 'labels/indoors',
-                                  'indoor', '', 'tp_indoors_labels.js', 'svmlinear')
-    picarus.classify.run_classifier_labels(root + 'train_feat/objects', root + 'train_feat/nonobjects', root + 'labels/objects',
-                                  'object', '', 'tp_objects_labels.js', 'svmlinear')
-    picarus.classify.run_classifier_labels(root + 'train_feat/pr0n', root + 'train_feat/nonpr0n', root + 'labels/pr0n',
-                                  'pr0n', '', 'tp_pr0n_labels.js', 'svmlinear')
-    picarus.classify.run_classifier_labels(root + 'train_feat/faces', root + 'train_feat/nonfaces', root + 'labels/faces',
-                                  'face', '', 'tp_faces_labels.js', 'svmlinear')
-
+    for dk in CLASSIFIERS:
+        d = DATA[dk]
+        ipathp = '%strain_%s' % (data_root, d['pos'])
+        ipathn = '%strain_%s' % (data_root, d['neg'])
+        rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
+        rpathn = lambda x: '%s%s/%s' % (root, x, d['neg'])
+        picarus.vision.run_image_feature(ipathp, rpathp('train_feat'), d['feature'], d['image_length'])
+        picarus.vision.run_image_feature(ipathn, rpathn('train_feat'), d['feature'], d['image_length'])
+        
+    # Label images
+    for dk in CLASSIFIERS:
+        d = DATA[dk]
+        rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
+        rpathn = lambda x: '%s%s/%s' % (root, x, d['neg'])
+        lpathp = 'tp_%s_labels.js' % d['pos']
+        picarus.classify.run_classifier_labels(rpathp('train_feat'), rpathn('train_feat'),
+                                               rpathp('labels'), d['pos'], '', lpathp, d['classifier'])
     # Train classifiers
-    picarus.classify.run_train_classifier([root + 'train_feat/photos', root + 'train_feat/nonphotos'], root + 'classifiers/photos', 'tp_photos_labels.js')
-    picarus.classify.run_train_classifier([root + 'train_feat/indoors', root + 'train_feat/outdoors'], root + 'classifiers/indoors', 'tp_indoors_labels.js')
-    picarus.classify.run_train_classifier([root + 'train_feat/objects', root + 'train_feat/nonobjects'], root + 'classifiers/objects', 'tp_objects_labels.js')
-    picarus.classify.run_train_classifier([root + 'train_feat/pr0n', root + 'train_feat/nonpr0n'], root + 'classifiers/pr0n', 'tp_pr0n_labels.js')
-    picarus.classify.run_train_classifier([root + 'train_feat/faces', root + 'train_feat/nonfaces'], root + 'classifiers/faces', 'tp_faces_labels.js')
-    return '%f' % start_time
+    for dk in CLASSIFIERS:
+        d = DATA[dk]
+        rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
+        rpathn = lambda x: '%s%s/%s' % (root, x, d['neg'])
+        lpathp = 'tp_%s_labels.js' % d['pos']
+        picarus.classify.run_train_classifier([rpathp('train_feat'), rpathn('train_feat')], rpathp('classifiers'), lpathp)
+    return start_time
 
 
 def train_predict(train_start_time='1308626598.185418'):
@@ -89,27 +101,24 @@ def train_predict(train_start_time='1308626598.185418'):
     train_root = '/user/brandyn/tp/image_cluster/run-%s/' % train_start_time
     root = '/user/brandyn/tp/image_cluster/run-%f/' % start_time
 
-    picarus.vision.run_image_feature(test_photos_path, root + 'test_feat/photos', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(test_nonphotos_path, root + 'test_feat/nonphotos', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(test_indoors_path, root + 'test_feat/indoors', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(test_outdoors_path, root + 'test_feat/outdoors', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(test_objects_path, root + 'test_feat/objects', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(test_nonobjects_path, root + 'test_feat/nonobjects', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(test_pr0n_path, root + 'test_feat/pr0n', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(test_nonpr0n_path, root + 'test_feat/nonpr0n', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(test_faces_path, root + 'test_feat/faces', 'meta_gist_spatial_hist', 256)
-    picarus.vision.run_image_feature(test_nonfaces_path, root + 'test_feat/nonfaces', 'meta_gist_spatial_hist', 256)
+    for dk in CLASSIFIERS:
+        d = DATA[dk]
+        ipathp = '%stest_%s' % (data_root, d['pos'])
+        ipathn = '%stest_%s' % (data_root, d['neg'])
+        rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
+        rpathn = lambda x: '%s%s/%s' % (root, x, d['neg'])
+        picarus.vision.run_image_feature(ipathp, rpathp('test_feat'), d['feature'], d['image_length'])
+        picarus.vision.run_image_feature(ipathn, rpathn('test_feat'), d['feature'], d['image_length'])
 
-    picarus.classify.run_predict_classifier([root + 'test_feat/photos'], train_root + 'classifiers/photos', root + 'test_predict/photos')
-    picarus.classify.run_predict_classifier([root + 'test_feat/nonphotos'], train_root + 'classifiers/photos', root + 'test_predict/nonphotos')
-    picarus.classify.run_predict_classifier([root + 'test_feat/indoors'], train_root + 'classifiers/indoors', root + 'test_predict/indoors')
-    picarus.classify.run_predict_classifier([root + 'test_feat/outdoors'], train_root + 'classifiers/indoors', root + 'test_predict/outdoors')
-    picarus.classify.run_predict_classifier([root + 'test_feat/objects'], train_root + 'classifiers/objects', root + 'test_predict/objects')
-    picarus.classify.run_predict_classifier([root + 'test_feat/nonobjects'], train_root + 'classifiers/objects', root + 'test_predict/nonobjects')
-    picarus.classify.run_predict_classifier([root + 'test_feat/pr0n'], train_root + 'classifiers/pr0n', root + 'test_predict/pr0n')
-    picarus.classify.run_predict_classifier([root + 'test_feat/nonpr0n'], train_root + 'classifiers/pr0n', root + 'test_predict/nonpr0n')
-    picarus.classify.run_predict_classifier([root + 'test_feat/faces'], train_root + 'classifiers/faces', root + 'test_predict/faces')
-    picarus.classify.run_predict_classifier([root + 'test_feat/nonfaces'], train_root + 'classifiers/faces', root + 'test_predict/nonfaces')
+    for dk in CLASSIFIERS:
+        d = DATA[dk]
+        ipathp = '%stest_%s' % (data_root, d['pos'])
+        ipathn = '%stest_%s' % (data_root, d['neg'])
+        tpathp = lambda x: '%s%s/%s' % (train_root, x, d['pos'])
+        rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
+        rpathn = lambda x: '%s%s/%s' % (root, x, d['neg'])
+        picarus.classify.run_predict_classifier(rpathp('test_feat'), tpathp('classifiers'), rpathp('test_predict'))
+        picarus.classify.run_predict_classifier(rpathn('test_feat'), tpathp('classifiers'), rpathn('test_predict'))
     return '%f' % start_time
 
 
@@ -140,11 +149,11 @@ def _score_train_prediction(pos_pred_path, neg_pred_path, classifier_name):
 
 def score_train_predictions(test_start_time='1308630752.962982'):
     root = '/user/brandyn/tp/image_cluster/run-%s/' % test_start_time
-    _score_train_prediction(root + '/test_predict/photos', root + '/test_predict/nonphotos', 'photo')
-    _score_train_prediction(root + '/test_predict/indoors', root + '/test_predict/outdoors', 'indoor')
-    _score_train_prediction(root + '/test_predict/objects', root + '/test_predict/nonobjects', 'object')
-    _score_train_prediction(root + '/test_predict/pr0n', root + '/test_predict/nonpr0n', 'pr0n')
-    _score_train_prediction(root + '/test_predict/faces', root + '/test_predict/nonfaces', 'face')
+    for dk in CLASSIFIERS:
+        d = DATA[dk]
+        rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
+        rpathn = lambda x: '%s%s/%s' % (root, x, d['neg'])
+        _score_train_prediction(rpathp('test_predict'), rpathn('test_predict'), d['pos'])
 
 
 def predict(train_start_time, hdfs_input_path):
@@ -153,47 +162,58 @@ def predict(train_start_time, hdfs_input_path):
     start_time = time.time()
     root = '/user/brandyn/tp/image_cluster/run-%s/' % start_time
     # Predict photos
-    picarus.vision.run_image_feature(hdfs_input_path, root + 'feat/input', 'meta_gist_spatial_hist', 256)
-    picarus.classify.run_predict_classifier(root + 'feat/input', train_root + 'classifiers/photos', root + 'predict/photos')
+    d = DATA['photos']
+    tpathp = lambda x: '%s%s/%s' % (train_root, x, d['pos'])
+    rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
+    rpathn = lambda x: '%s%s/%s' % (root, x, d['neg'])
+    feat_input_path = '%sfeat/input' % root
+    picarus.vision.run_image_feature(hdfs_input_path, feat_input_path, d['feature'], d['image_length'])
+    picarus.classify.run_predict_classifier(feat_input_path, tpathp('classifiers'), rpathp('predict'))
     # Split images for photos/nonphotos
-    picarus.classify.run_thresh_predictions(root + 'predict/photos', hdfs_input_path, root + 'data/photos', 'photo', 0., 1)
-    picarus.classify.run_thresh_predictions(root + 'predict/photos', hdfs_input_path, root + 'data/nonphotos', 'photo', 0., -1)
+    picarus.classify.run_thresh_predictions(rpathp('predict'), hdfs_input_path, rpathp('data'), d['pos'], 0., 1)
+    picarus.classify.run_thresh_predictions(rpathp('predict'), hdfs_input_path, rpathn('data'), d['pos'], 0., -1)
+    data_photos_path = rpathp('data')
     # Split features for photos
-    picarus.classify.run_thresh_predictions(root + 'predict/photos', root + 'feat/input', root + 'feat/photos', 'photo', 0., 1)
-    # Predict photo subclasses
-    picarus.classify.run_predict_classifier(root + 'feat/photos', train_root + 'classifiers/indoors', root + 'predict/indoors')
-    picarus.classify.run_predict_classifier(root + 'feat/photos', train_root + 'classifiers/objects', root + 'predict/objects')
-    picarus.classify.run_predict_classifier(root + 'feat/photos', train_root + 'classifiers/pr0n', root + 'predict/pr0n')
-    # Split images for photos subclasses
-    picarus.classify.run_thresh_predictions(root + 'predict/indoors', root + 'data/photos', root + 'data/indoors', 'indoor', 0., 1)
-    picarus.classify.run_thresh_predictions(root + 'predict/indoors', root + 'data/photos', root + 'data/outdoors', 'indoor', 0., -1)
-    picarus.classify.run_thresh_predictions(root + 'predict/objects', root + 'data/photos', root + 'data/objects', 'object', 0., 1)
-    picarus.classify.run_thresh_predictions(root + 'predict/pr0n', root + 'data/photos', root + 'data/pr0n', 'pr0n', 0., 1)
-    # Split features for photos subclasses
-    picarus.classify.run_thresh_predictions(root + 'predict/indoors', root + 'feat/photos', root + 'feat/indoors', 'indoor', 0., 1)
-    picarus.classify.run_thresh_predictions(root + 'predict/indoors', root + 'feat/photos', root + 'feat/outdoors', 'indoor', 0., -1)
-    picarus.classify.run_thresh_predictions(root + 'predict/objects', root + 'feat/photos', root + 'feat/objects', 'object', 0., 1)
-    picarus.classify.run_thresh_predictions(root + 'predict/pr0n', root + 'feat/photos', root + 'feat/pr0n', 'pr0n', 0., 1)
-    # Find faces and compute the eigenface feature
-    picarus.vision.run_face_finder(root + 'data/photos', root + 'data/detected_faces', image_length=64, boxes=False)
-    picarus.vision.run_image_feature(root + 'data/detected_faces', root + 'feat/detected_faces', 'meta_gist_spatial_hist', 256)
-    picarus.classify.run_predict_classifier(root + 'feat/detected_faces', train_root + 'classifiers/faces', root + 'predict/detected_faces')
-    picarus.classify.run_thresh_predictions(root + 'predict/detected_faces', root + 'data/detected_faces', root + 'data/faces', 'face', 0., 1)
-    picarus.vision.run_image_feature(root + 'data/faces', root + 'feat/faces', 'eigenface', 64)
+    feat_photos_path = rpathp('feat')
+    picarus.classify.run_thresh_predictions(rpathp('predict'), feat_input_path, feat_photos_path, d['pos'], 0., 1)
+    # Predict photo and split images/features for photos subclasses
+    for photo_subclass in PHOTOS_SUBCLASSES:
+        d = DATA[photo_subclass]
+        tpathp = lambda x: '%s%s/%s' % (train_root, x, d['pos'])
+        rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
+        picarus.classify.run_predict_classifier(feat_photos_path, tpathp('classifiers'), rpathp('predict'))
+        picarus.classify.run_thresh_predictions(rpathp('predict'), data_photos_path, rpathp('data'), d['pos'], 0., 1)
+        picarus.classify.run_thresh_predictions(rpathp('predict'), data_photos_path, rpathn('data'), d['pos'], 0., -1)
+        picarus.classify.run_thresh_predictions(rpathp('predict'), feat_photos_path, rpathp('feat'), d['pos'], 0., 1)
+        picarus.classify.run_thresh_predictions(rpathp('predict'), feat_photos_path, rpathn('feat'), d['pos'], 0., -1)
+    # Find faces (another round of classification after the intial detection)
+    d = DATA['detected_faces']
+    tpathp = lambda x: '%s%s/%s' % (train_root, x, d['pos'])
+    rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
+    data_faces_path = '%sdata/faces' % root
+    picarus.vision.run_face_finder(data_photos_path, rpathp('data'), image_length=d['image_length'], boxes=False)  # Reject more faces first
+    picarus.vision.run_image_feature(rpathp('data'), rpathp('feat'), d['feature'], d['image_lenth'])
+    picarus.classify.run_predict_classifier(rpathp('feat'), tpathp('classifiers'), rpathp('predict'))
+    picarus.classify.run_thresh_predictions(rpathp('predict'), rpathp('data'), data_faces_path, d['pos'], 0., 1)
+    # Compute the eigenface feature
+    d = DATA['faces']
+    tpathp = lambda x: '%s%s/%s' % (train_root, x, d['pos'])
+    rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
+    picarus.vision.run_image_feature(data_faces_path, rpathp('feat'), d['feature'], d['image_length'])
     # Sample for initial clusters
     num_clusters = 10
     num_iters = 5
     num_output_samples = 10
-    whiten = lambda x: picarus.cluster.run_whiten(root + 'feat/%s' % x, root + 'whiten/%s' % x)
-    map(whiten, ['indoors', 'outdoors', 'objects', 'pr0n', 'faces'])
-    sample = lambda x: picarus.cluster.run_sample(root + 'whiten/%s' % x, root + 'cluster/%s/clust0' % x, num_clusters)
-    map(sample, ['indoors', 'outdoors', 'objects', 'pr0n', 'faces'])
-    # Cluster photos, indoors, outdoors, pr0n, faces
-    kmeans = lambda x: hadoopy_flow.Greenlet(picarus.cluster.run_kmeans, root + 'whiten/%s' % x, root + 'cluster/%s/clust0' % x, root + 'data/%s' % x,
-                                             root + 'cluster/%s' % x, num_clusters, num_iters, num_output_samples, 'l2sqr').start()
-    map(kmeans, ['indoors', 'outdoors', 'objects', 'pr0n', 'faces'])
-    # Generate JSON output
-
+    for (dk, pol) in CLUSTERS:
+        d = DATA[dk]
+        rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
+        rpathn = lambda x: '%s%s/%s' % (root, x, d['neg'])
+        pols = {'pos': rpathp, 'neg': rpathn}
+        for p in pol:
+            picarus.cluster.run_whiten(pols[p]('feat'), pols[p]('whiten'))
+            picarus.cluster.run_sample(pols[p]('whiten'), pols[p]('cluster') + '/clust0', num_clusters)
+            hadoopy_flow.Greenlet(picarus.cluster.run_kmeans, pols[p]('whiten'), pols[p]('cluster') + '/clust0', pols[p]('data'),
+                                  pols[p]('cluster'), num_clusters, num_iters, num_output_samples, 'l2sqr').start()
 
 if __name__ == '__main__':
     train_start_time = train()
