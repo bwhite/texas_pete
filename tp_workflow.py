@@ -2,18 +2,22 @@ import hadoopy_flow
 import hadoopy
 import picarus
 import time
+import json
+import shutil
+import os
 
 
-def run_videos():
+def run_videos(video_input):
     start_time = time.time()
     #start_time = 1308792496.427986
     root = '/user/amiller/tp/video_keyframe/run-%f/' % start_time
-    picarus.vision.run_video_keyframe('/user/brandyn/videos_small', root + 'video_keyframe/', 30, 3.0, ffmpeg=False)
+    picarus.vision.run_video_keyframe(video_input, root + 'video_keyframe/', 30, 3.0, ffmpeg=True)
 
     # Make the thumbnails (this parallelizes)
-    for tag in ['photos', 'nonphotos']:
-        picarus.report.make_thumbnails(data_root + 'test_' + tag, root + '/thumbs/' + tag, 100)
-    picarus.report.make_thumbnails(root + 'video_keyframe/keyframes', root + 'video_keyframe/thumbs', 100)
+    #for tag in ['photos', 'nonphotos']:
+    #    picarus.report.make_thumbnails(data_root + 'test_' + tag, root + '/thumbs/' + tag, 100)
+    #picarus.report.make_thumbnails(root + 'video_keyframe/keyframes', root + 'video_keyframe/thumbs', 100)
+    return root + 'video_keyframe/'
 
 
 # HDFS Paths with data of the form (unique_string, binary_image_data
@@ -40,10 +44,6 @@ test_pr0n_path = data_root + 'test_pr0n'
 test_nonpr0n_path = data_root + 'test_nonpr0n'
 test_faces_path = data_root + 'test_faces'
 test_nonfaces_path = data_root + 'test_nonfaces'
-
-
-def make_reports():
-    pass
 
 
 def train():
@@ -195,12 +195,59 @@ def predict(train_start_time, hdfs_input_path):
     # Generate JSON output
 
 
+def report_clusters_faces_videos(root_path, video_root=None):
+    """
+    """
+
+    root = root_path
+    start_time = time.time()
+
+    outroot = '/user/amiller/tp/run-%f/report' % start_time
+    local = 'out/run-%f/report/' % start_time
+    clusters = ['indoors', 'nonphotos', 'outdoors', 'objects', 'pr0n']
+    clusters += ['faces']
+
+    # Process all the thumbnails in parallel
+    thumb_input = [root + 'cluster/' + c + '/samples' for c in clusters]
+    picarus.report.make_thumbnails(thumb_input, outroot + '/thumb', 100, is_cluster=True)
+    if video_root is not None:
+        picarus.report.make_thumbnails(video_root + '/samples', outroot + '/vidthumb', 100)
+
+    # Prepare json report
+    report = {}
+    for c in clusters:
+        make_faces = 'faces' in c
+        r = picarus.report.report_clusters(root + 'cluster/' + c + '/samples', 100, c, make_faces)
+        report.update(r)
+
+    # Copy all the thumbnails locally
+    picarus.report.report_thumbnails(outroot + '/thumb', local + 't/')
+    if video_root is not None:
+        r = picarus.report.report_video_keyframe(video_root + '/keyframe')
+        report.update(r)
+        picarus.report.report_thumbnails(outroot + '/vidthumb', local + 't/')
+
+    with open(local + 'sample_report.js', 'w') as f:
+        f.write('var report = ')
+        f.write(json.dumps(report))
+
+    shutil.copy(picarus.report.__path__[0] + '/data/static_sample_report.html', local)
+
+
 if __name__ == '__main__':
-    train_start_time = train()
-    test_start_time = train_predict(train_start_time)
-    score_train_predictions(test_start_time)
+    #train_start_time = train()
+    #test_start_time = train_predict(train_start_time)
+    #score_train_predictions(test_start_time)
     #train_start_time = '1308644265.354146'
     #test_start_time = '1308650330.016147'
-    print('TrainStart[%s] TestStart[%s]' % (train_start_time, test_start_time))
-    #run_videos()
-    predict(train_start_time, '/user/brandyn/classifier_data/unlabeled_flickr_small')
+    #print('TrainStart[%s] TestStart[%s]' % (train_start_time, test_start_time))
+    #video_root = run_videos('/user/brandyn/videos_small')
+    video_root = run_videos('/user/brandyn/classifier_data/video_youtube_action_dataset')
+    #video_root = '/user/amiller/tp/video_keyframe/run-1308909363.792692/video_keyframe/'
+    #video_root = '/user/amiller/tp/video_keyframe/run-1308949490.935586/video_keyframe/'
+    #video_root = '/user/amiller/tp/video_keyframe/run-1308983321.752871/video_keyframe/'
+    root_path = '/user/brandyn/tp/image_cluster/run-1308982894.03/'
+    #root_time = '1308952078.55'
+    #root_time = '1308974393.99'
+    report_clusters_faces_videos(root_path=root_path, video_root=video_root)
+    #predict(train_start_time, '/user/brandyn/classifier_data/unlabeled_flickr_small')
