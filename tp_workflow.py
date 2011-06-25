@@ -54,7 +54,7 @@ def make_root(start_time):
 
 
 def make_local_root(start_time):
-    return 'out/run-%f/' % start_time
+    return 'out/run-%s/' % start_time
 
 
 def dump_settings(train_start_time):
@@ -283,6 +283,7 @@ if __name__ == '__main__':
     #test_start_time = '1308650330.016147'
     #print('TrainStart[%s] TestStart[%s]' % (train_start_time, test_start_time))
     video_start_time = run_videos('/user/brandyn/classifier_data/video_youtube_action_dataset')
-    predict_start_time = predict(train_start_time, '/user/brandyn/classifier_data/unlabeled_flickr')
+    #predict_start_time = predict(train_start_time, '/user/brandyn/classifier_data/unlabeled_flickr')
+    predict_start_time = '1308988799.817190'
     report_clusters_faces_videos(predict_start_time, video_start_time)
         
