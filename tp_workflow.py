@@ -8,10 +8,7 @@ import shutil
 
 # HDFS Paths with data of the form (unique_string, binary_image_data
 data_root = '/user/brandyn/classifier_data/'
-
-
-
-FEATURE = 'hist_joint'# meta_gist_spatial_hist
+FEATURE = 'hist_joint'  # meta_gist_spatial_hist
 IMAGE_LENGTH = 128
 DATA = {'photos': {'pos': 'photos',
                    'neg': 'nonphotos',
@@ -52,6 +49,14 @@ CLUSTERS = [('photos', ['pos', 'neg']), ('indoors', ['pos', 'neg']),
 PHOTOS_SUBCLASSES = ['indoors', 'objects', 'pr0n']  # Each of these are derived from predicted photos
 
 
+def make_root(start_time):
+    return 'tp/image_cluster/run-%s/' % start_time
+
+
+def make_local_root(start_time):
+    return 'out/run-%f/' % start_time
+
+
 def dump_settings(train_start_time):
     with open('%s.js' % train_start_time, 'w') as fp:
         g = globals()
@@ -62,7 +67,7 @@ def dump_settings(train_start_time):
 def train():
     # HDFS Paths for Output
     start_time = '%f' % time.time()
-    root = '/user/brandyn/tp/image_cluster/run-%s/' % start_time
+    root = make_root(start_time)
 
     # Compute features for classifier train
     for dk in CLASSIFIERS:
@@ -94,8 +99,8 @@ def train():
 
 def train_predict(train_start_time='1308626598.185418'):
     start_time = time.time()
-    train_root = '/user/brandyn/tp/image_cluster/run-%s/' % train_start_time
-    root = '/user/brandyn/tp/image_cluster/run-%f/' % start_time
+    train_root = make_root(train_start_time)
+    root = make_root(start_time)
 
     for dk in CLASSIFIERS:
         d = DATA[dk]
@@ -143,8 +148,8 @@ def _score_train_prediction(pos_pred_path, neg_pred_path, classifier_name):
     return tp, fp, tn, fn
 
 
-def score_train_predictions(test_start_time='1308630752.962982'):
-    root = '/user/brandyn/tp/image_cluster/run-%s/' % test_start_time
+def score_train_predictions(test_start_time):
+    root = make_root(test_start_time)
     for dk in CLASSIFIERS:
         d = DATA[dk]
         rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
@@ -154,9 +159,9 @@ def score_train_predictions(test_start_time='1308630752.962982'):
 
 def predict(train_start_time, hdfs_input_path):
     # NOTE(brandyn): This assumes that they all use the same feature
-    train_root = '/user/brandyn/tp/image_cluster/run-%s/' % train_start_time
+    train_root = make_root(train_start_time)
     start_time = '%f' % time.time()
-    root = '/user/brandyn/tp/image_cluster/run-%s/' % start_time
+    root = make_root(start_time)
     # Predict photos
     d = DATA['photos']
     tpathp = lambda x: '%s%s/%s' % (train_root, x, d['pos'])
@@ -221,34 +226,33 @@ def cluster(root):
 
 
 def run_videos(video_input):
-    start_time = time.time()
-    root = '/user/amiller/tp/video_keyframe/run-%f/' % start_time
+    start_time = '%f' % time.time()
+    root = make_root(start_time)
     picarus.vision.run_video_keyframe(video_input, root + 'video_keyframe/', 30, 3.0, ffmpeg=True)
 
     # Make the thumbnails (this parallelizes)
     #for tag in ['photos', 'nonphotos']:
     #    picarus.report.make_thumbnails(data_root + 'test_' + tag, root + '/thumbs/' + tag, 100)
     #picarus.report.make_thumbnails(root + 'video_keyframe/keyframes', root + 'video_keyframe/thumbs', 100)
-    return root + 'video_keyframe/'
+    return start_time
 
 
-def report_clusters_faces_videos(predict_start_time, video_root=None):
+def report_clusters_faces_videos(predict_start_time, video_start_time):
     """
     """
-    root_path = '/user/brandyn/tp/image_cluster/run-%s/' % predict_start_time
-    root = root_path
-    start_time = time.time()
-
-    outroot = '/user/amiller/tp/run-%f/report' % start_time
-    local = 'out/run-%f/report/' % start_time
+    root = make_root(predict_start_time)
+    start_time = '%f' % time.time()
+    video_root = make_root(video_start_time)
+    out_root = make_root(start_time)
+    local = make_local_root(start_time)
     clusters = ['indoors', 'nonphotos', 'outdoors', 'objects', 'pr0n']
     clusters += ['faces']
 
     # Process all the thumbnails in parallel
     thumb_input = [root + 'cluster/' + c + '/samples' for c in clusters]
-    picarus.report.make_thumbnails(thumb_input, outroot + '/thumb', 100, is_cluster=True)
+    picarus.report.make_thumbnails(thumb_input, out_root + 'report/thumb', 100, is_cluster=True)
     if video_root is not None:
-        picarus.report.make_thumbnails(video_root + '/samples', outroot + '/vidthumb', 100)
+        picarus.report.make_thumbnails(video_root + 'video_keyframe/samples', out_root + 'report/vidthumb', 100)
 
     # Prepare json report
     report = {}
@@ -258,17 +262,17 @@ def report_clusters_faces_videos(predict_start_time, video_root=None):
         report.update(r)
 
     # Copy all the thumbnails locally
-    picarus.report.report_thumbnails(outroot + '/thumb', local + 't/')
+    picarus.report.report_thumbnails(out_root + 'report/thumb', local + 'report/t/')
     if video_root is not None:
-        r = picarus.report.report_video_keyframe(video_root + '/keyframe')
+        r = picarus.report.report_video_keyframe(video_root + 'video_keyframe/keyframe')
         report.update(r)
-        picarus.report.report_thumbnails(outroot + '/vidthumb', local + 't/')
+        picarus.report.report_thumbnails(out_root + 'report/vidthumb', local + 'report/t/')
 
-    with open(local + 'sample_report.js', 'w') as f:
+    with open(local + 'report/sample_report.js', 'w') as f:
         f.write('var report = ')
         f.write(json.dumps(report))
 
-    shutil.copy(picarus.report.__path__[0] + '/data/static_sample_report.html', local)
+    shutil.copy(picarus.report.__path__[0] + '/data/static_sample_report.html', local + 'report')
 
 if __name__ == '__main__':
     #train_start_time = train()
@@ -278,7 +282,7 @@ if __name__ == '__main__':
     dump_settings(train_start_time)
     #test_start_time = '1308650330.016147'
     #print('TrainStart[%s] TestStart[%s]' % (train_start_time, test_start_time))
-    video_root = run_videos('/user/brandyn/classifier_data/video_youtube_action_dataset')
+    video_start_time = run_videos('/user/brandyn/classifier_data/video_youtube_action_dataset')
     predict_start_time = predict(train_start_time, '/user/brandyn/classifier_data/unlabeled_flickr')
-    report_clusters_faces_videos(predict_start_time, video_root=video_root)
+    report_clusters_faces_videos(predict_start_time, video_start_time)
         
