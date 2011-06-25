@@ -275,10 +275,10 @@ def report_clusters_faces_videos(predict_start_time, video_start_time):
     shutil.copy(picarus.report.__path__[0] + '/data/static_sample_report.html', local + 'report')
 
 if __name__ == '__main__':
-    #train_start_time = train()
-    #test_start_time = train_predict(train_start_time)
+    train_start_time = train()
+    test_start_time = train_predict(train_start_time)
     #score_train_predictions(test_start_time)
-    train_start_time = '1308973654.680628'  # '1308644265.354146'
+    #train_start_time = '1308973654.680628'  # '1308644265.354146'
     dump_settings(train_start_time)
     #test_start_time = '1308650330.016147'
     #print('TrainStart[%s] TestStart[%s]' % (train_start_time, test_start_time))
