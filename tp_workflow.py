@@ -199,6 +199,7 @@ def predict(train_start_time, hdfs_input_path):
     picarus.vision.run_image_feature(data_faces_path, rpathp('feat'), d['feature'], d['image_length'])
     # Sample for initial clusters
     cluster(root)
+    return start_time
 
 
 def cluster(root):
