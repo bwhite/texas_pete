@@ -1,4 +1,5 @@
 import hadoopy_flow
+hadoopy_flow.USE_EXISTING = True  # Auto resume existing tasks
 import hadoopy
 import picarus
 import time
@@ -48,6 +49,15 @@ CLUSTERS = [('photos', ['pos', 'neg']), ('indoors', ['pos', 'neg']),
             ('objects', ['pos']), ('faces', ['pos']), ('pr0n', ['pos'])]   # Clustering is performed on each of those
 PHOTOS_SUBCLASSES = ['indoors', 'objects', 'pr0n']  # Each of these are derived from predicted photos
 
+# Start time overrides: If they are non-empty, then use them instead of the current time.
+# This is useful if you are adding features near the end of the pipeline and you want to resuse
+# existing output.
+OVERRIDE_TRAIN_START_TIME = '1309024643.040306'
+OVERRIDE_TRAIN_PREDICT_START_TIME = '1309024874.36'
+OVERRIDE_PREDICT_START_TIME = '1309025061.858704'
+OVERRIDE_VIDEOS_START_TIME = '1309027876.144541'
+OVERRIDE_REPORT_START_TIME = ''
+
 
 def make_root(start_time):
     return 'tp/image_cluster/run-%s/' % start_time
@@ -57,16 +67,17 @@ def make_local_root(start_time):
     return 'out/run-%s/' % start_time
 
 
-def dump_settings(train_start_time):
-    with open('%s.js' % train_start_time, 'w') as fp:
+def dump_settings(**kw):
+    with open('%s.js' % kw['train_start_time'], 'w') as fp:
         g = globals()
         out = dict((x, g[x]) for x in ('CLASSIFIERS', 'CLUSTERS', 'PHOTOS_SUBCLASSES', 'DATA'))
+        out.update(kw)
         json.dump(out, fp, -1)
 
 
 def train():
     # HDFS Paths for Output
-    start_time = '%f' % time.time()
+    start_time = OVERRIDE_TRAIN_START_TIME if OVERRIDE_TRAIN_START_TIME else '%f' % time.time()
     root = make_root(start_time)
 
     # Compute features for classifier train
@@ -97,8 +108,8 @@ def train():
     return start_time
 
 
-def train_predict(train_start_time='1308626598.185418'):
-    start_time = time.time()
+def train_predict(train_start_time):
+    start_time = OVERRIDE_TRAIN_PREDICT_START_TIME if OVERRIDE_TRAIN_PREDICT_START_TIME else '%f' % time.time()
     train_root = make_root(train_start_time)
     root = make_root(start_time)
 
@@ -120,7 +131,7 @@ def train_predict(train_start_time='1308626598.185418'):
         rpathn = lambda x: '%s%s/%s' % (root, x, d['neg'])
         picarus.classify.run_predict_classifier(rpathp('test_feat'), tpathp('classifiers'), rpathp('test_predict'))
         picarus.classify.run_predict_classifier(rpathn('test_feat'), tpathp('classifiers'), rpathn('test_predict'))
-    return '%f' % start_time
+    return start_time
 
 
 def _score_train_prediction(pos_pred_path, neg_pred_path, classifier_name):
@@ -159,8 +170,8 @@ def score_train_predictions(test_start_time):
 
 def predict(train_start_time, hdfs_input_path):
     # NOTE(brandyn): This assumes that they all use the same feature
+    start_time = OVERRIDE_PREDICT_START_TIME if OVERRIDE_PREDICT_START_TIME else '%f' % time.time()
     train_root = make_root(train_start_time)
-    start_time = '%f' % time.time()
     root = make_root(start_time)
     # Predict photos
     d = DATA['photos']
@@ -204,6 +215,7 @@ def predict(train_start_time, hdfs_input_path):
     picarus.vision.run_image_feature(data_faces_path, rpathp('feat'), d['feature'], d['image_length'])
     # Sample for initial clusters
     cluster(root)
+    hadoopy_flow.joinall()  # We join here as later jobs use the result of these greenlets
     return start_time
 
 
@@ -226,7 +238,7 @@ def cluster(root):
 
 
 def run_videos(video_input):
-    start_time = '%f' % time.time()
+    start_time = OVERRIDE_VIDEOS_START_TIME if OVERRIDE_VIDEOS_START_TIME else '%f' % time.time()
     root = make_root(start_time)
     picarus.vision.run_video_keyframe(video_input, root + 'video_keyframe/', 30, 3.0, ffmpeg=True)
 
@@ -241,7 +253,7 @@ def report_clusters_faces_videos(predict_start_time, video_start_time):
     """
     """
     root = make_root(predict_start_time)
-    start_time = '%f' % time.time()
+    start_time = OVERRIDE_REPORT_START_TIME if OVERRIDE_REPORT_START_TIME else '%f' % time.time()
     video_root = make_root(video_start_time)
     out_root = make_root(start_time)
     local = make_local_root(start_time)
@@ -273,17 +285,18 @@ def report_clusters_faces_videos(predict_start_time, video_start_time):
         f.write(json.dumps(report))
 
     shutil.copy(picarus.report.__path__[0] + '/data/static_sample_report.html', local + 'report')
+    return start_time
 
 if __name__ == '__main__':
     train_start_time = train()
-    test_start_time = train_predict(train_start_time)
-    #score_train_predictions(test_start_time)
-    #train_start_time = '1308973654.680628'  # '1308644265.354146'
-    dump_settings(train_start_time)
-    #test_start_time = '1308650330.016147'
-    #print('TrainStart[%s] TestStart[%s]' % (train_start_time, test_start_time))
+    train_predict_start_time = train_predict(train_start_time)
+    score_train_predictions(train_predict_start_time)
     video_start_time = run_videos('/user/brandyn/classifier_data/video_youtube_action_dataset')
-    #predict_start_time = predict(train_start_time, '/user/brandyn/classifier_data/unlabeled_flickr')
-    predict_start_time = '1308988799.817190'
-    report_clusters_faces_videos(predict_start_time, video_start_time)
+    predict_start_time = predict(train_start_time, '/user/brandyn/classifier_data/unlabeled_flickr')
+    report_start_time = report_clusters_faces_videos(predict_start_time, video_start_time)
+    dump_settings(train_start_time=train_start_time,
+                  train_predict_start_time=train_predict_start_time,
+                  video_start_time=video_start_time,
+                  predict_start_time=predict_start_time,
+                  report_start_time=report_start_time)
         
