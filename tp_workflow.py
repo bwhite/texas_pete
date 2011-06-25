@@ -3,26 +3,13 @@ import hadoopy
 import picarus
 import time
 import json
-
-
-def run_videos():
-    start_time = time.time()
-    #start_time = 1308792496.427986
-    root = '/user/amiller/tp/video_keyframe/run-%f/' % start_time
-    picarus.vision.run_video_keyframe('/user/brandyn/videos_small', root + 'video_keyframe/', 30, 3.0, ffmpeg=False)
-
-    # Make the thumbnails (this parallelizes)
-    for tag in ['photos', 'nonphotos']:
-        picarus.report.make_thumbnails(data_root + 'test_' + tag, root + '/thumbs/' + tag, 100)
-    picarus.report.make_thumbnails(root + 'video_keyframe/keyframes', root + 'video_keyframe/thumbs', 100)
+import shutil
 
 
 # HDFS Paths with data of the form (unique_string, binary_image_data
 data_root = '/user/brandyn/classifier_data/'
 
 
-def make_reports():
-    pass
 
 FEATURE = 'hist_joint'# meta_gist_spatial_hist
 IMAGE_LENGTH = 128
@@ -231,6 +218,57 @@ def cluster(root):
                                   pols[p]('cluster'), num_clusters, num_iters, num_output_samples, 'l2sqr').start()
             print('Done Clustering[%s]' % d[p])
 
+
+def run_videos(video_input):
+    start_time = time.time()
+    root = '/user/amiller/tp/video_keyframe/run-%f/' % start_time
+    picarus.vision.run_video_keyframe(video_input, root + 'video_keyframe/', 30, 3.0, ffmpeg=True)
+
+    # Make the thumbnails (this parallelizes)
+    #for tag in ['photos', 'nonphotos']:
+    #    picarus.report.make_thumbnails(data_root + 'test_' + tag, root + '/thumbs/' + tag, 100)
+    #picarus.report.make_thumbnails(root + 'video_keyframe/keyframes', root + 'video_keyframe/thumbs', 100)
+    return root + 'video_keyframe/'
+
+
+def report_clusters_faces_videos(predict_start_time, video_root=None):
+    """
+    """
+    root_path = '/user/brandyn/tp/image_cluster/run-%s/' % predict_start_time
+    root = root_path
+    start_time = time.time()
+
+    outroot = '/user/amiller/tp/run-%f/report' % start_time
+    local = 'out/run-%f/report/' % start_time
+    clusters = ['indoors', 'nonphotos', 'outdoors', 'objects', 'pr0n']
+    clusters += ['faces']
+
+    # Process all the thumbnails in parallel
+    thumb_input = [root + 'cluster/' + c + '/samples' for c in clusters]
+    picarus.report.make_thumbnails(thumb_input, outroot + '/thumb', 100, is_cluster=True)
+    if video_root is not None:
+        picarus.report.make_thumbnails(video_root + '/samples', outroot + '/vidthumb', 100)
+
+    # Prepare json report
+    report = {}
+    for c in clusters:
+        make_faces = 'faces' in c
+        r = picarus.report.report_clusters(root + 'cluster/' + c + '/samples', 100, c, make_faces)
+        report.update(r)
+
+    # Copy all the thumbnails locally
+    picarus.report.report_thumbnails(outroot + '/thumb', local + 't/')
+    if video_root is not None:
+        r = picarus.report.report_video_keyframe(video_root + '/keyframe')
+        report.update(r)
+        picarus.report.report_thumbnails(outroot + '/vidthumb', local + 't/')
+
+    with open(local + 'sample_report.js', 'w') as f:
+        f.write('var report = ')
+        f.write(json.dumps(report))
+
+    shutil.copy(picarus.report.__path__[0] + '/data/static_sample_report.html', local)
+
 if __name__ == '__main__':
     #train_start_time = train()
     #test_start_time = train_predict(train_start_time)
@@ -239,5 +277,7 @@ if __name__ == '__main__':
     dump_settings(train_start_time)
     #test_start_time = '1308650330.016147'
     #print('TrainStart[%s] TestStart[%s]' % (train_start_time, test_start_time))
-    #run_videos()
-    predict(train_start_time, '/user/brandyn/classifier_data/unlabeled_flickr')
+    video_root = run_videos('/user/brandyn/classifier_data/video_youtube_action_dataset')
+    predict_start_time = predict(train_start_time, '/user/brandyn/classifier_data/unlabeled_flickr')
+    report_clusters_faces_videos(predict_start_time, video_root=video_root)
+        
