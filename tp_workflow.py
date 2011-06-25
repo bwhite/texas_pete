@@ -2,6 +2,7 @@ import hadoopy_flow
 import hadoopy
 import picarus
 import time
+import json
 
 
 def run_videos():
@@ -23,27 +24,28 @@ data_root = '/user/brandyn/classifier_data/'
 def make_reports():
     pass
 
-FEATURE = 'meta_gist_spatial_hist'
+FEATURE = 'hist_joint'# meta_gist_spatial_hist
+IMAGE_LENGTH = 128
 DATA = {'photos': {'pos': 'photos',
                    'neg': 'nonphotos',
                    'feature': FEATURE,
-                   'image_length': 256,
+                   'image_length': IMAGE_LENGTH,
                    'classifier': 'svmlinear',
                    'labels_name': 'tp_indoor_labels.js'},
         'indoors': {'pos': 'indoors',
                     'neg': 'outdoors',
                     'feature': FEATURE,
-                    'image_length': 256,
+                    'image_length': IMAGE_LENGTH,
                     'classifier': 'svmlinear'},
         'objects': {'pos': 'objects',
                     'neg': 'nonobjects',
                     'feature': FEATURE,
-                    'image_length': 256,
+                    'image_length': IMAGE_LENGTH,
                     'classifier': 'svmlinear'},
         'detected_faces': {'pos': 'detected_faces',
                            'neg': 'detected_nonfaces',
                            'feature': FEATURE,
-                           'image_length': 256,
+                           'image_length': IMAGE_LENGTH,
                            'classifier': 'svmlinear'},
         'faces': {'pos': 'faces',
                   'neg': 'nonfaces',
@@ -53,7 +55,7 @@ DATA = {'photos': {'pos': 'photos',
         'pr0n': {'pos': 'pr0n',
                  'neg': 'nonpr0n',
                  'feature': FEATURE,
-                 'image_length': 256,
+                 'image_length': IMAGE_LENGTH,
                  'classifier': 'svmlinear'}}
 
 
@@ -61,6 +63,13 @@ CLASSIFIERS = ['photos', 'indoors', 'objects', 'detected_faces', 'pr0n']   # A c
 CLUSTERS = [('photos', ['pos', 'neg']), ('indoors', ['pos', 'neg']),
             ('objects', ['pos']), ('faces', ['pos']), ('pr0n', ['pos'])]   # Clustering is performed on each of those
 PHOTOS_SUBCLASSES = ['indoors', 'objects', 'pr0n']  # Each of these are derived from predicted photos
+
+
+def dump_settings(train_start_time):
+    with open('%s.js' % train_start_time, 'w') as fp:
+        g = globals()
+        out = dict((x, g[x]) for x in ('CLASSIFIERS', 'CLUSTERS', 'PHOTOS_SUBCLASSES', 'DATA'))
+        json.dump(out, fp, -1)
 
 
 def train():
@@ -159,7 +168,7 @@ def score_train_predictions(test_start_time='1308630752.962982'):
 def predict(train_start_time, hdfs_input_path):
     # NOTE(brandyn): This assumes that they all use the same feature
     train_root = '/user/brandyn/tp/image_cluster/run-%s/' % train_start_time
-    start_time = time.time()
+    start_time = '%f' % time.time()
     root = '/user/brandyn/tp/image_cluster/run-%s/' % start_time
     # Predict photos
     d = DATA['photos']
@@ -175,7 +184,8 @@ def predict(train_start_time, hdfs_input_path):
     data_photos_path = rpathp('data')
     # Split features for photos
     feat_photos_path = rpathp('feat')
-    picarus.classify.run_thresh_predictions(rpathp('predict'), feat_input_path, feat_photos_path, d['pos'], 0., 1)
+    picarus.classify.run_thresh_predictions(rpathp('predict'), feat_input_path, rpathp('feat'), d['pos'], 0., 1)
+    picarus.classify.run_thresh_predictions(rpathp('predict'), feat_input_path, rpathn('feat'), d['pos'], 0., -1)
     # Predict photo and split images/features for photos subclasses
     for photo_subclass in PHOTOS_SUBCLASSES:
         d = DATA[photo_subclass]
@@ -192,7 +202,7 @@ def predict(train_start_time, hdfs_input_path):
     rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
     data_faces_path = '%sdata/faces' % root
     picarus.vision.run_face_finder(data_photos_path, rpathp('data'), image_length=d['image_length'], boxes=False)  # Reject more faces first
-    picarus.vision.run_image_feature(rpathp('data'), rpathp('feat'), d['feature'], d['image_lenth'])
+    picarus.vision.run_image_feature(rpathp('data'), rpathp('feat'), d['feature'], d['image_length'])
     picarus.classify.run_predict_classifier(rpathp('feat'), tpathp('classifiers'), rpathp('predict'))
     picarus.classify.run_thresh_predictions(rpathp('predict'), rpathp('data'), data_faces_path, d['pos'], 0., 1)
     # Compute the eigenface feature
@@ -201,7 +211,11 @@ def predict(train_start_time, hdfs_input_path):
     rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
     picarus.vision.run_image_feature(data_faces_path, rpathp('feat'), d['feature'], d['image_length'])
     # Sample for initial clusters
-    num_clusters = 10
+    cluster(root)
+
+
+def cluster(root):
+    num_clusters = 20
     num_iters = 5
     num_output_samples = 10
     for (dk, pol) in CLUSTERS:
@@ -210,17 +224,20 @@ def predict(train_start_time, hdfs_input_path):
         rpathn = lambda x: '%s%s/%s' % (root, x, d['neg'])
         pols = {'pos': rpathp, 'neg': rpathn}
         for p in pol:
+            print('Start Clustering[%s]' % d[p])
             picarus.cluster.run_whiten(pols[p]('feat'), pols[p]('whiten'))
             picarus.cluster.run_sample(pols[p]('whiten'), pols[p]('cluster') + '/clust0', num_clusters)
             hadoopy_flow.Greenlet(picarus.cluster.run_kmeans, pols[p]('whiten'), pols[p]('cluster') + '/clust0', pols[p]('data'),
                                   pols[p]('cluster'), num_clusters, num_iters, num_output_samples, 'l2sqr').start()
+            print('Done Clustering[%s]' % d[p])
 
 if __name__ == '__main__':
-    train_start_time = train()
-    test_start_time = train_predict(train_start_time)
-    score_train_predictions(test_start_time)
-    #train_start_time = '1308644265.354146'
+    #train_start_time = train()
+    #test_start_time = train_predict(train_start_time)
+    #score_train_predictions(test_start_time)
+    train_start_time = '1308973654.680628'  # '1308644265.354146'
+    dump_settings(train_start_time)
     #test_start_time = '1308650330.016147'
-    print('TrainStart[%s] TestStart[%s]' % (train_start_time, test_start_time))
+    #print('TrainStart[%s] TestStart[%s]' % (train_start_time, test_start_time))
     #run_videos()
-    predict(train_start_time, '/user/brandyn/classifier_data/unlabeled_flickr_small')
+    predict(train_start_time, '/user/brandyn/classifier_data/unlabeled_flickr')

@@ -18,9 +18,27 @@ def read_files(fns, prev_hashes):
             prev_hashes.add(data_hash)
             yield data_hash, data
 
+# Write vidoes
+videos = ['aladdin_videos', 'youtube_action_dataset']
+for video_name in videos:
+    fns = glob.glob('%s/%s/*' % (local_root, video_name))
+    random.shuffle(fns)
+    prev_hashes = set()
+    hadoopy.writetb('%s/video_%s' % (hdfs_root, video_name), read_files(fns, prev_hashes))
+    print('Unlabeled:[%s] Num[%d]' % (video_name, len(prev_hashes)))
+
+# Write unabled data (used for evaluation)
+unlabeled = ['flickr', 'flickr_small']
+for unlabeled_name in unlabeled:
+    fns = glob.glob('%s/%s/*' % (local_root, unlabeled_name))
+    random.shuffle(fns)
+    prev_hashes = set()
+    hadoopy.writetb('%s/unlabeled_%s' % (hdfs_root, unlabeled_name), read_files(fns, prev_hashes))
+    print('Unlabeled:[%s] Num[%d]' % (unlabeled_name, len(prev_hashes)))
+
+
 # Write train/test
-data_pairs = [('detected_faces', 'detected_nonfaces')]
-#data_pairs = [('detected_faces', 'detected_nonfaces'), ('photos', 'nonphotos'), ('indoors', 'outdoors'), ('pr0n', 'nonpr0n'), ('objects', 'nonobjects')]
+data_pairs = [('detected_faces', 'detected_nonfaces'), ('photos', 'nonphotos'), ('indoors', 'outdoors'), ('pr0n', 'nonpr0n'), ('objects', 'nonobjects')]
 for pos_name, neg_name in data_pairs:
     pos_fns = glob.glob('%s/%s/*' % (local_root, pos_name))
     neg_fns = glob.glob('%s/%s/*' % (local_root, neg_name))
@@ -44,24 +62,5 @@ for pos_name, neg_name in data_pairs:
     num_neg_train = len(prev_hashes) - (num_pos_train + num_pos_test + num_neg_test)
     print('+:[%s] Train[%d] Test[%d]' % (pos_name, num_pos_train, num_pos_test))
     print('-:[%s] Train[%d] Test[%d]' % (neg_name, num_neg_train, num_neg_test))
-quit(1)
-
-# Write unabled data (used for evaluation)
-unlabeled = ['flickr_small', 'flickr']
-for unlabeled_name in unlabeled:
-    fns = glob.glob('%s/%s/*' % (local_root, unlabeled_name))
-    random.shuffle(fns)
-    prev_hashes = set()
-    hadoopy.writetb('%s/unlabeled_%s' % (hdfs_root, unlabeled_name), read_files(fns, prev_hashes))
-    print('Unlabeled:[%s] Num[%d]' % (unlabeled_name, len(prev_hashes)))
 
 
-# Write vidoes
-#videos = ['youtube_action_dataset', 'aladdin_videos']
-videos = ['youtube_action_dataset']
-for video_name in videos:
-    fns = glob.glob('%s/%s/*' % (local_root, video_name))
-    random.shuffle(fns)
-    prev_hashes = set()
-    hadoopy.writetb('%s/video_%s' % (hdfs_root, video_name), read_files(fns, prev_hashes))
-    print('Unlabeled:[%s] Num[%d]' % (video_name, len(prev_hashes)))
