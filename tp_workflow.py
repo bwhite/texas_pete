@@ -261,30 +261,30 @@ def report_clusters_faces_videos(predict_start_time, video_start_time):
     clusters += ['faces']
 
     # Process all the thumbnails in parallel
-    thumb_input = [root + 'cluster/' + c + '/samples' for c in clusters]
-    picarus.report.make_thumbnails(thumb_input, out_root + 'report/thumb', 100, is_cluster=True)
+    thumb_input = [root + '/cluster/' + c + '/partition' for c in clusters]
+    picarus.report.make_thumbnails(thumb_input, out_root + '/report/thumb', 100, is_cluster=True)
     if video_root is not None:
-        picarus.report.make_thumbnails(video_root + 'video_keyframe/samples', out_root + 'report/vidthumb', 100)
+        picarus.report.make_thumbnails(video_root + '/video_keyframe/allframes', out_root + '/report/vidthumb', 100)
 
     # Prepare json report
     report = {}
     for c in clusters:
         make_faces = 'faces' in c
-        r = picarus.report.report_clusters(root + 'cluster/' + c + '/samples', 100, c, make_faces)
+        r = picarus.report.report_clusters(root + '/cluster/' + c, 100, c, make_faces)
         report.update(r)
 
     # Copy all the thumbnails locally
-    picarus.report.report_thumbnails(out_root + 'report/thumb', local + 'report/t/')
+    picarus.report.report_thumbnails(out_root + '/report/thumb', local + '/report/t/')
     if video_root is not None:
-        r = picarus.report.report_video_keyframe(video_root + 'video_keyframe/keyframe')
+        r = picarus.report.report_video_keyframe(video_root + '/video_keyframe/keyframe')
         report.update(r)
-        picarus.report.report_thumbnails(out_root + 'report/vidthumb', local + 'report/t/')
+        picarus.report.report_thumbnails(out_root + '/report/vidthumb', local + '/report/t/')
 
-    with open(local + 'report/sample_report.js', 'w') as f:
+    with open(local + '/report/sample_report.js', 'w') as f:
         f.write('var report = ')
         f.write(json.dumps(report))
 
-    shutil.copy(picarus.report.__path__[0] + '/data/static_sample_report.html', local + 'report')
+    shutil.copy(picarus.report.__path__[0] + '/data/static_sample_report.html', local + '/report')
     return start_time
 
 if __name__ == '__main__':
