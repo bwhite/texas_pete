@@ -9,7 +9,7 @@ import os
 
 
 # HDFS Paths with data of the form (sha1_hash, record) (see picarus IO docs)
-VIDEO_INPUT_PATH = '/user/brandyn/classifier_data/video_record_youtube_action_dataset'
+VIDEO_INPUT_PATH = '/user/brandyn/classifier_data/video_record_youtube_action_dataset/records'
 IMAGES_INPUT_PATH = '/user/brandyn/classifier_data/unlabeled_record_flickr/part-00050'
 data_root = '/user/brandyn/classifier_data/'
 FEATURE = 'meta_gist_spatial_hist'  # 'hist_joint'
@@ -59,8 +59,8 @@ NUM_OUTPUT_SAMPLES = 10
 # Start time overrides: If they are non-empty, then use them instead of the current time.
 # This is useful if you are adding features near the end of the pipeline and you want to resuse
 # existing output.
-OVERRIDE_TRAIN_START_TIME = ''
-OVERRIDE_TRAIN_PREDICT_START_TIME = ''
+OVERRIDE_TRAIN_START_TIME = '1309162927.185244'
+OVERRIDE_TRAIN_PREDICT_START_TIME = '1309163239.096134'
 OVERRIDE_PREDICT_START_TIME = ''
 OVERRIDE_VIDEOS_START_TIME = ''
 OVERRIDE_REPORT_START_TIME = ''
