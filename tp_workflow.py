@@ -55,7 +55,8 @@ PHOTOS_SUBCLASSES = ['indoors', 'objects', 'pr0n']  # Each of these are derived 
 OVERRIDE_TRAIN_START_TIME = '1309024643.040306'
 OVERRIDE_TRAIN_PREDICT_START_TIME = '1309024874.36'
 OVERRIDE_PREDICT_START_TIME = '1309025061.858704'
-OVERRIDE_VIDEOS_START_TIME = '1309027876.144541'
+#OVERRIDE_VIDEOS_START_TIME = '1309027876.144541'
+OVERRIDE_VIDEOS_START_TIME = ''
 OVERRIDE_REPORT_START_TIME = ''
 
 
@@ -89,7 +90,7 @@ def train():
         rpathn = lambda x: '%s%s/%s' % (root, x, d['neg'])
         picarus.vision.run_image_feature(ipathp, rpathp('train_feat'), d['feature'], d['image_length'])
         picarus.vision.run_image_feature(ipathn, rpathn('train_feat'), d['feature'], d['image_length'])
-        
+
     # Label images
     for dk in CLASSIFIERS:
         d = DATA[dk]
@@ -240,7 +241,7 @@ def cluster(root):
 def run_videos(video_input):
     start_time = OVERRIDE_VIDEOS_START_TIME if OVERRIDE_VIDEOS_START_TIME else '%f' % time.time()
     root = make_root(start_time)
-    picarus.vision.run_video_keyframe(video_input, root + 'video_keyframe/', 30, 3.0, ffmpeg=True)
+    picarus.vision.run_video_keyframe(video_input, root + 'video_keyframe/', 1.0, ffmpeg=True)
 
     # Make the thumbnails (this parallelizes)
     #for tag in ['photos', 'nonphotos']:
@@ -270,7 +271,7 @@ def report_clusters_faces_videos(predict_start_time, video_start_time):
     report = {}
     for c in clusters:
         make_faces = 'faces' in c
-        r = picarus.report.report_clusters(root + '/cluster/' + c, 100, c, make_faces)
+        r = picarus.report.report_clusters(root + '/cluster/' + c, c, make_faces)
         report.update(r)
 
     # Copy all the thumbnails locally
@@ -288,6 +289,10 @@ def report_clusters_faces_videos(predict_start_time, video_start_time):
     return start_time
 
 if __name__ == '__main__':
+    train_start_time = OVERRIDE_TRAIN_START_TIME
+    train_predict_start_time = OVERRIDE_TRAIN_PREDICT_START_TIME
+    predict_start_time = OVERRIDE_PREDICT_START_TIME
+
     train_start_time = train()
     train_predict_start_time = train_predict(train_start_time)
     score_train_predictions(train_predict_start_time)
@@ -299,4 +304,3 @@ if __name__ == '__main__':
                   video_start_time=video_start_time,
                   predict_start_time=predict_start_time,
                   report_start_time=report_start_time)
-        
