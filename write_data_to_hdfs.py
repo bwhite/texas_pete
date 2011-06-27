@@ -2,6 +2,8 @@ import hadoopy
 import glob
 import hashlib
 import random
+import picarus
+import os
 
 
 hdfs_root = 'classifier_data'
@@ -19,13 +21,19 @@ def read_files(fns, prev_hashes):
 
 
 # Write vidoes
-videos = ['videos']  # 'youtube_action_dataset'
+videos = ['youtube_action_dataset']  # 'videos'
 for video_name in videos:
-    fns = glob.glob('%s/%s/*' % (local_root, video_name))
+    picarus.io.load_local(os.path.join(local_root, video_name), '%s/video_record_%s' % (hdfs_root, video_name), output_format='record', max_record_size=290986)
+
+# Write unabled data (used for evaluation)
+unlabeled = []  #
+for unlabeled_name in unlabeled:
+    fns = glob.glob('%s/%s/*' % (local_root, unlabeled_name))
     random.shuffle(fns)
     prev_hashes = set()
-    hadoopy.writetb('%s/video_%s' % (hdfs_root, video_name), read_files(fns, prev_hashes))
-    print('Unlabeled:[%s] Num[%d]' % (video_name, len(prev_hashes)))
+    hadoopy.writetb('%s/unlabeled_%s' % (hdfs_root, unlabeled_name), read_files(fns, prev_hashes))
+    print('Unlabeled:[%s] Num[%d]' % (unlabeled_name, len(prev_hashes)))
+
 quit()
 # Write train/test
 data_pairs = [('detected_faces', 'detected_nonfaces'), ('photos', 'nonphotos'), ('indoors', 'outdoors'), ('pr0n', 'nonpr0n'), ('objects', 'nonobjects')]
@@ -52,15 +60,5 @@ for pos_name, neg_name in data_pairs:
     num_neg_train = len(prev_hashes) - (num_pos_train + num_pos_test + num_neg_test)
     print('+:[%s] Train[%d] Test[%d]' % (pos_name, num_pos_train, num_pos_test))
     print('-:[%s] Train[%d] Test[%d]' % (neg_name, num_neg_train, num_neg_test))
-
-
-# Write unabled data (used for evaluation)
-unlabeled = []
-for unlabeled_name in unlabeled:
-    fns = glob.glob('%s/%s/*' % (local_root, unlabeled_name))
-    random.shuffle(fns)
-    prev_hashes = set()
-    hadoopy.writetb('%s/unlabeled_%s' % (hdfs_root, unlabeled_name), read_files(fns, prev_hashes))
-    print('Unlabeled:[%s] Num[%d]' % (unlabeled_name, len(prev_hashes)))
 
 

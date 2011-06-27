@@ -8,7 +8,9 @@ import shutil
 import os
 
 
-# HDFS Paths with data of the form (unique_string, binary_image_data
+# HDFS Paths with data of the form (sha1_hash, record) (see picarus IO docs)
+VIDEO_INPUT_PATH = '/user/brandyn/classifier_data/video_record_youtube_action_dataset'
+IMAGES_INPUT_PATH = '/user/brandyn/classifier_data/unlabeled_record_flickr/part-00050'
 data_root = '/user/brandyn/classifier_data/'
 FEATURE = 'meta_gist_spatial_hist'  # 'hist_joint'
 IMAGE_LENGTH = 64  # 128
@@ -47,6 +49,12 @@ CLASSIFIERS = ['photos', 'indoors', 'objects', 'detected_faces', 'pr0n']   # A c
 CLUSTERS = [('photos', ['pos', 'neg']), ('indoors', ['pos', 'neg']),
             ('objects', ['pos']), ('faces', ['pos']), ('pr0n', ['pos'])]   # Clustering is performed on each of those
 PHOTOS_SUBCLASSES = ['indoors', 'objects', 'pr0n']  # Each of these are derived from predicted photos
+
+# Clustering parameters
+NUM_LOCAL_SAMPLES = 5000
+NUM_CLUSTERS = 20
+NUM_ITERS = 5
+NUM_OUTPUT_SAMPLES = 10
 
 # Start time overrides: If they are non-empty, then use them instead of the current time.
 # This is useful if you are adding features near the end of the pipeline and you want to resuse
@@ -176,11 +184,13 @@ def score_train_predictions(test_start_time):
     return results
 
 
-def predict(train_start_time, hdfs_input_path):
-    # NOTE(brandyn): This assumes that they all use the same feature
+def predict(train_start_time, hdfs_record_input_path):
     start_time = OVERRIDE_PREDICT_START_TIME if OVERRIDE_PREDICT_START_TIME else '%f' % time.time()
     train_root = make_root(train_start_time)
     root = make_root(start_time)
+    # Convert
+    hdfs_input_path = '%sdata/input' % root
+    picarus.io.run_record_to_kv(hdfs_record_input_path, hdfs_input_path)
     # Predict photos
     d = DATA['photos']
     tpathp = lambda x: '%s%s/%s' % (train_root, x, d['pos'])
@@ -228,10 +238,6 @@ def predict(train_start_time, hdfs_input_path):
 
 
 def cluster(root):
-    num_local_samples = 5000
-    num_clusters = 20
-    num_iters = 5
-    num_output_samples = 10
     for (dk, pol) in CLUSTERS:
         d = DATA[dk]
         rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
@@ -240,10 +246,10 @@ def cluster(root):
         for p in pol:
             print('Start Clustering[%s]' % d[p])
             picarus.cluster.run_whiten(pols[p]('feat'), pols[p]('whiten'))
-            picarus.cluster.run_sample(pols[p]('whiten'), pols[p]('cluster') + '/local_sample', num_local_samples)
-            picarus.cluster.run_local_kmeans(pols[p]('cluster') + '/local_sample', pols[p]('cluster') + '/clust0', num_clusters)
+            picarus.cluster.run_sample(pols[p]('whiten'), pols[p]('cluster') + '/local_sample', NUM_LOCAL_SAMPLES)
+            picarus.cluster.run_local_kmeans(pols[p]('cluster') + '/local_sample', pols[p]('cluster') + '/clust0', NUM_CLUSTERS)
             hadoopy_flow.Greenlet(picarus.cluster.run_kmeans, pols[p]('whiten'), pols[p]('cluster') + '/clust0', pols[p]('data'),
-                                  pols[p]('cluster'), num_clusters, num_iters, num_output_samples, 'l2sqr').start()
+                                  pols[p]('cluster'), NUM_CLUSTERS, NUM_ITERS, NUM_OUTPUT_SAMPLES, 'l2sqr').start()
             print('Done Clustering[%s]' % d[p])
 
 
@@ -305,9 +311,8 @@ if __name__ == '__main__':
     train_start_time = train()
     train_predict_start_time = train_predict(train_start_time)
     test_results = score_train_predictions(train_predict_start_time)
-    video_start_time = run_videos('/user/brandyn/classifier_data/video_videos')
-    predict_start_time = predict(train_start_time, '/user/brandyn/classifier_data/unlabeled_flickr/part-00050')
-    #/user/brandyn/classifier_data/unlabeled_flickr
+    video_start_time = run_videos(VIDEO_INPUT_PATH)
+    predict_start_time = predict(train_start_time, IMAGES_INPUT_PATH)
     report_start_time = report_clusters_faces_videos(predict_start_time, video_start_time)
     dump_settings(train_start_time=train_start_time,
                   train_predict_start_time=train_predict_start_time,
