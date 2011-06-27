@@ -18,6 +18,15 @@ def read_files(fns, prev_hashes):
             yield data_hash, data
 
 
+# Write vidoes
+videos = ['videos']  # 'youtube_action_dataset'
+for video_name in videos:
+    fns = glob.glob('%s/%s/*' % (local_root, video_name))
+    random.shuffle(fns)
+    prev_hashes = set()
+    hadoopy.writetb('%s/video_%s' % (hdfs_root, video_name), read_files(fns, prev_hashes))
+    print('Unlabeled:[%s] Num[%d]' % (video_name, len(prev_hashes)))
+quit()
 # Write train/test
 data_pairs = [('detected_faces', 'detected_nonfaces'), ('photos', 'nonphotos'), ('indoors', 'outdoors'), ('pr0n', 'nonpr0n'), ('objects', 'nonobjects')]
 for pos_name, neg_name in data_pairs:
@@ -46,7 +55,7 @@ for pos_name, neg_name in data_pairs:
 
 
 # Write unabled data (used for evaluation)
-unlabeled = ['flickr', 'flickr_small']
+unlabeled = []
 for unlabeled_name in unlabeled:
     fns = glob.glob('%s/%s/*' % (local_root, unlabeled_name))
     random.shuffle(fns)
@@ -55,11 +64,3 @@ for unlabeled_name in unlabeled:
     print('Unlabeled:[%s] Num[%d]' % (unlabeled_name, len(prev_hashes)))
 
 
-# Write vidoes
-videos = ['youtube_action_dataset']
-for video_name in videos:
-    fns = glob.glob('%s/%s/*' % (local_root, video_name))
-    random.shuffle(fns)
-    prev_hashes = set()
-    hadoopy.writetb('%s/video_%s' % (hdfs_root, video_name), read_files(fns, prev_hashes))
-    print('Unlabeled:[%s] Num[%d]' % (video_name, len(prev_hashes)))

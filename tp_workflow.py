@@ -5,43 +5,42 @@ import picarus
 import time
 import json
 import shutil
+import os
 
 
 # HDFS Paths with data of the form (unique_string, binary_image_data
 data_root = '/user/brandyn/classifier_data/'
-FEATURE = 'hist_joint'  # meta_gist_spatial_hist
-IMAGE_LENGTH = 128
+FEATURE = 'meta_gist_spatial_hist'  # 'hist_joint'
+IMAGE_LENGTH = 64  # 128
 DATA = {'photos': {'pos': 'photos',
                    'neg': 'nonphotos',
                    'feature': FEATURE,
                    'image_length': IMAGE_LENGTH,
-                   'classifier': 'svmlinear',
-                   'labels_name': 'tp_indoor_labels.js'},
+                   'classifier': 'svmlinear_autotune'},
         'indoors': {'pos': 'indoors',
                     'neg': 'outdoors',
-                    'feature': FEATURE,
+                    'feature': 'meta_gist_spatial_hist_autocorrelogram',
                     'image_length': IMAGE_LENGTH,
-                    'classifier': 'svmlinear'},
+                    'classifier': 'svmlinear_autotune'},
         'objects': {'pos': 'objects',
                     'neg': 'nonobjects',
                     'feature': FEATURE,
                     'image_length': IMAGE_LENGTH,
-                    'classifier': 'svmlinear'},
+                    'classifier': 'svmlinear_autotune'},
         'detected_faces': {'pos': 'detected_faces',
                            'neg': 'detected_nonfaces',
-                           'feature': FEATURE,
+                           'feature': 'meta_hog_gist_hist',
                            'image_length': IMAGE_LENGTH,
-                           'classifier': 'svmlinear'},
+                           'classifier': 'svmlinear_autotune'},
         'faces': {'pos': 'faces',
                   'neg': 'nonfaces',
                   'feature': 'eigenface',
-                  'image_length': 64,
-                  'classifier': 'svmlinear'},
+                  'image_length': 64},
         'pr0n': {'pos': 'pr0n',
                  'neg': 'nonpr0n',
                  'feature': FEATURE,
                  'image_length': IMAGE_LENGTH,
-                 'classifier': 'svmlinear'}}
+                 'classifier': 'svmlinear_autotune'}}
 
 
 CLASSIFIERS = ['photos', 'indoors', 'objects', 'detected_faces', 'pr0n']   # A classifier is learned for each of those
@@ -52,10 +51,9 @@ PHOTOS_SUBCLASSES = ['indoors', 'objects', 'pr0n']  # Each of these are derived 
 # Start time overrides: If they are non-empty, then use them instead of the current time.
 # This is useful if you are adding features near the end of the pipeline and you want to resuse
 # existing output.
-OVERRIDE_TRAIN_START_TIME = '1309024643.040306'
-OVERRIDE_TRAIN_PREDICT_START_TIME = '1309024874.36'
-OVERRIDE_PREDICT_START_TIME = '1309025061.858704'
-#OVERRIDE_VIDEOS_START_TIME = '1309027876.144541'
+OVERRIDE_TRAIN_START_TIME = ''
+OVERRIDE_TRAIN_PREDICT_START_TIME = ''
+OVERRIDE_PREDICT_START_TIME = ''
 OVERRIDE_VIDEOS_START_TIME = ''
 OVERRIDE_REPORT_START_TIME = ''
 
@@ -65,11 +63,16 @@ def make_root(start_time):
 
 
 def make_local_root(start_time):
-    return 'out/run-%s/' % start_time
+    out = 'out/run-%s/' % start_time
+    try:
+        os.makedirs(out)
+    except OSError:
+        pass
+    return out
 
 
 def dump_settings(**kw):
-    with open('%s.js' % kw['train_start_time'], 'w') as fp:
+    with open('%sreport/config.js' % (make_local_root(kw['report_start_time'])), 'w') as fp:
         g = globals()
         out = dict((x, g[x]) for x in ('CLASSIFIERS', 'CLUSTERS', 'PHOTOS_SUBCLASSES', 'DATA'))
         out.update(kw)
@@ -156,17 +159,21 @@ def _score_train_prediction(pos_pred_path, neg_pred_path, classifier_name):
                 else:
                     tn += 1
     print('%s: [%d, %d, %d, %d]' % (classifier_name, tp, fp, tn, fn))
-    print('%.3f %.3f' % (tp / float(tp + fn), tp / float(tp + fp)))
-    return tp, fp, tn, fn
+    p, r = (tp / float(tp + fp), tp / float(tp + fn))
+    print('p: %.3f r: %.3f' % (p, r))
+    return tp, fp, tn, fn, p, r
 
 
 def score_train_predictions(test_start_time):
     root = make_root(test_start_time)
+    results = {}
     for dk in CLASSIFIERS:
         d = DATA[dk]
         rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
         rpathn = lambda x: '%s%s/%s' % (root, x, d['neg'])
-        _score_train_prediction(rpathp('test_predict'), rpathn('test_predict'), d['pos'])
+        out = _score_train_prediction(rpathp('test_predict'), rpathn('test_predict'), d['pos'])
+        results[dk] = out
+    return results
 
 
 def predict(train_start_time, hdfs_input_path):
@@ -221,6 +228,7 @@ def predict(train_start_time, hdfs_input_path):
 
 
 def cluster(root):
+    num_local_samples = 5000
     num_clusters = 20
     num_iters = 5
     num_output_samples = 10
@@ -232,7 +240,8 @@ def cluster(root):
         for p in pol:
             print('Start Clustering[%s]' % d[p])
             picarus.cluster.run_whiten(pols[p]('feat'), pols[p]('whiten'))
-            picarus.cluster.run_sample(pols[p]('whiten'), pols[p]('cluster') + '/clust0', num_clusters)
+            picarus.cluster.run_sample(pols[p]('whiten'), pols[p]('cluster') + '/local_sample', num_local_samples)
+            picarus.cluster.run_local_kmeans(pols[p]('cluster') + '/local_sample', pols[p]('cluster') + '/clust0', num_clusters)
             hadoopy_flow.Greenlet(picarus.cluster.run_kmeans, pols[p]('whiten'), pols[p]('cluster') + '/clust0', pols[p]('data'),
                                   pols[p]('cluster'), num_clusters, num_iters, num_output_samples, 'l2sqr').start()
             print('Done Clustering[%s]' % d[p])
@@ -295,12 +304,14 @@ if __name__ == '__main__':
 
     train_start_time = train()
     train_predict_start_time = train_predict(train_start_time)
-    score_train_predictions(train_predict_start_time)
-    video_start_time = run_videos('/user/brandyn/classifier_data/video_youtube_action_dataset')
-    predict_start_time = predict(train_start_time, '/user/brandyn/classifier_data/unlabeled_flickr')
+    test_results = score_train_predictions(train_predict_start_time)
+    video_start_time = run_videos('/user/brandyn/classifier_data/video_videos')
+    predict_start_time = predict(train_start_time, '/user/brandyn/classifier_data/unlabeled_flickr/part-00050')
+    #/user/brandyn/classifier_data/unlabeled_flickr
     report_start_time = report_clusters_faces_videos(predict_start_time, video_start_time)
     dump_settings(train_start_time=train_start_time,
                   train_predict_start_time=train_predict_start_time,
                   video_start_time=video_start_time,
                   predict_start_time=predict_start_time,
-                  report_start_time=report_start_time)
+                  report_start_time=report_start_time,
+                  test_results=test_results)
