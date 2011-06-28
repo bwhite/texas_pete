@@ -10,7 +10,7 @@ import os
 
 # HDFS Paths with data of the form (sha1_hash, record) (see picarus IO docs)
 VIDEO_INPUT_PATH = '/user/brandyn/classifier_data/video_record_videos/'
-IMAGES_INPUT_PATH = '/user/brandyn/classifier_data/unlabeled_record_flickr/part-00050'
+IMAGES_INPUT_PATH = '/user/brandyn/classifier_data/unlabeled_record_flickr/'
 data_root = '/user/brandyn/classifier_data/'
 FEATURE = 'meta_gist_spatial_hist'  # 'hist_joint'
 IMAGE_LENGTH = 64  # 128
@@ -62,7 +62,7 @@ NUM_OUTPUT_SAMPLES = 10
 SKIP_OVERRIDE = True
 OVERRIDE_TRAIN_START_TIME = 'run-1309217498.306274'
 OVERRIDE_TRAIN_PREDICT_START_TIME = '1309217833.546531'
-OVERRIDE_PREDICT_START_TIME = '1309220159.290158'
+OVERRIDE_PREDICT_START_TIME = ''
 OVERRIDE_VIDEOS_START_TIME = ''
 OVERRIDE_REPORT_START_TIME = ''
 
