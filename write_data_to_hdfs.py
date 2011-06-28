@@ -21,9 +21,9 @@ def read_files(fns, prev_hashes):
 
 
 # Write vidoes
-videos = ['youtube_action_dataset']  # 'videos'
+videos = ['videos']  # 'videos', 'youtube_action_dataset'
 for video_name in videos:
-    picarus.io.load_local(os.path.join(local_root, video_name), '%s/video_record_%s' % (hdfs_root, video_name), output_format='record', max_record_size=290986)
+    picarus.io.load_local(os.path.join(local_root, video_name), '%s/video_record_%s' % (hdfs_root, video_name), output_format='record', max_record_size=3367074, max_kv_per_file=1)
 
 # Write unabled data (used for evaluation)
 unlabeled = []  #

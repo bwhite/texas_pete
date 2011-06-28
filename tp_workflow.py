@@ -9,7 +9,7 @@ import os
 
 
 # HDFS Paths with data of the form (sha1_hash, record) (see picarus IO docs)
-VIDEO_INPUT_PATH = '/user/brandyn/classifier_data/video_record_youtube_action_dataset/records'
+VIDEO_INPUT_PATH = '/user/brandyn/classifier_data/video_record_videos/'
 IMAGES_INPUT_PATH = '/user/brandyn/classifier_data/unlabeled_record_flickr/part-00050'
 data_root = '/user/brandyn/classifier_data/'
 FEATURE = 'meta_gist_spatial_hist'  # 'hist_joint'
@@ -59,9 +59,10 @@ NUM_OUTPUT_SAMPLES = 10
 # Start time overrides: If they are non-empty, then use them instead of the current time.
 # This is useful if you are adding features near the end of the pipeline and you want to resuse
 # existing output.
-OVERRIDE_TRAIN_START_TIME = '1309162927.185244'
-OVERRIDE_TRAIN_PREDICT_START_TIME = '1309163239.096134'
-OVERRIDE_PREDICT_START_TIME = ''
+SKIP_OVERRIDE = True
+OVERRIDE_TRAIN_START_TIME = 'run-1309217498.306274'
+OVERRIDE_TRAIN_PREDICT_START_TIME = '1309217833.546531'
+OVERRIDE_PREDICT_START_TIME = '1309220159.290158'
 OVERRIDE_VIDEOS_START_TIME = ''
 OVERRIDE_REPORT_START_TIME = ''
 
@@ -89,6 +90,8 @@ def dump_settings(**kw):
 
 def train():
     # HDFS Paths for Output
+    if SKIP_OVERRIDE and OVERRIDE_TRAIN_START_TIME:
+        return OVERRIDE_TRAIN_START_TIME
     start_time = OVERRIDE_TRAIN_START_TIME if OVERRIDE_TRAIN_START_TIME else '%f' % time.time()
     root = make_root(start_time)
 
@@ -121,6 +124,8 @@ def train():
 
 
 def train_predict(train_start_time):
+    if SKIP_OVERRIDE and OVERRIDE_TRAIN_PREDICT_START_TIME:
+        return OVERRIDE_TRAIN_PREDICT_START_TIME
     start_time = OVERRIDE_TRAIN_PREDICT_START_TIME if OVERRIDE_TRAIN_PREDICT_START_TIME else '%f' % time.time()
     train_root = make_root(train_start_time)
     root = make_root(start_time)
@@ -185,6 +190,8 @@ def score_train_predictions(test_start_time):
 
 
 def predict(train_start_time, hdfs_record_input_path):
+    if SKIP_OVERRIDE and OVERRIDE_PREDICT_START_TIME:
+        return OVERRIDE_PREDICT_START_TIME
     start_time = OVERRIDE_PREDICT_START_TIME if OVERRIDE_PREDICT_START_TIME else '%f' % time.time()
     train_root = make_root(train_start_time)
     root = make_root(start_time)
@@ -254,6 +261,8 @@ def cluster(root):
 
 
 def run_videos(video_input):
+    if SKIP_OVERRIDE and OVERRIDE_VIDEOS_START_TIME:
+        return OVERRIDE_VIDEOS_START_TIME
     start_time = OVERRIDE_VIDEOS_START_TIME if OVERRIDE_VIDEOS_START_TIME else '%f' % time.time()
     root = make_root(start_time)
     picarus.vision.run_video_keyframe(video_input, root + 'video_keyframe/', 1.0, ffmpeg=True)
@@ -268,6 +277,8 @@ def run_videos(video_input):
 def report_clusters_faces_videos(predict_start_time, video_start_time):
     """
     """
+    if SKIP_OVERRIDE and OVERRIDE_REPORT_START_TIME:
+        return OVERRIDE_REPORT_START_TIME
     root = make_root(predict_start_time)
     start_time = OVERRIDE_REPORT_START_TIME if OVERRIDE_REPORT_START_TIME else '%f' % time.time()
     video_root = make_root(video_start_time)
@@ -278,9 +289,9 @@ def report_clusters_faces_videos(predict_start_time, video_start_time):
 
     # Process all the thumbnails in parallel
     thumb_input = [root + '/cluster/' + c + '/partition' for c in clusters]
-    picarus.report.make_thumbnails(thumb_input, out_root + '/report/thumb', 100, is_cluster=True)
+    picarus.report.make_thumbnails(thumb_input, out_root + '/report/thumb', 100, 'cluster')
     if video_root is not None:
-        picarus.report.make_thumbnails(video_root + '/video_keyframe/allframes', out_root + '/report/vidthumb', 100)
+        picarus.report.make_thumbnails(video_root + '/video_keyframe/allframes', out_root + '/report/vidthumb', 100, 'frame')
 
     # Prepare json report
     report = {}
