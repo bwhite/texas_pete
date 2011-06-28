@@ -8,7 +8,7 @@ def install_picarus():
     run('uname -s')
     work_dir = 'picarus-%f' % time.time()
     run('mkdir %s' % work_dir)
-    sudo('apt-get -y install libavcodec-dev libswscale-dev libavformat-dev gfortran ffmpeg fftw3-dev python-dev build-essential git-core python-setuptools cmake libjpeg62-dev libpng12-dev')
+    sudo('apt-get -y install libavcodec-dev libswscale-dev libavformat-dev gfortran ffmpeg fftw3-dev python-dev build-essential git-core python-setuptools cmake libjpeg62-dev libpng12-dev libblas-dev liblapack-dev')
     with cd(work_dir):
         # Apt Get
         run('wget http://downloads.sourceforge.net/project/opencvlibrary/opencv-unix/2.2/OpenCV-2.2.0.tar.bz2')
@@ -31,6 +31,12 @@ def install_picarus():
         install_git('https://github.com/bwhite/hadoopy_flow')
         install_git('https://github.com/bwhite/picarus')
         run('git clone https://github.com/bwhite/texas_pete')
+
+
+def install_data():
+    work_dir = 'data-%f' % time.time()
+    run('mkdir %s' % work_dir)
+    install_git('s3cmd get --recursive s3://picarus-data %s' % work_dir)
 
 
 def install_git(repo):
