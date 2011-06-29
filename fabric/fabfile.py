@@ -18,6 +18,7 @@ def install_picarus():
         install_git('https://github.com/bwhite/keyframe')
         install_git('https://github.com/bwhite/classipy')
         install_git('https://github.com/bwhite/impoint')
+        install_git('https://github.com/bwhite/pyram')
         install_git('https://github.com/bwhite/hadoopy')
         install_git('https://github.com/bwhite/hadoopy_flow')
         install_git('https://github.com/bwhite/picarus')
