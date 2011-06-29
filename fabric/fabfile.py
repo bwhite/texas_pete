@@ -36,7 +36,10 @@ def install_picarus():
 def install_data():
     work_dir = 'data-%f' % time.time()
     run('mkdir %s' % work_dir)
-    run('s3cmd get --recursive s3://picarus-data %s' % work_dir)
+    run('mkdir %s/classifier_data' % work_dir)
+    run('s3cmd get --recursive s3://picarus-data %s/classifier_data' % work_dir)
+    with cd(work_dir):
+        run('hadoop fs -put classifier_data .')
 
 
 def install_git(repo):
