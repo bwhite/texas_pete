@@ -8,7 +8,7 @@ def install_picarus():
     run('uname -s')
     work_dir = 'picarus-%f' % time.time()
     run('mkdir %s' % work_dir)
-    sudo('apt-get -y install libavcodec-dev libswscale-dev libavformat-dev gfortran ffmpeg fftw3-dev python-dev build-essential git-core python-setuptools cmake libjpeg62-dev libpng12-dev libblas-dev liblapack-dev')
+    sudo('apt-get -y install libavcodec-dev libswscale-dev libavformat-dev gfortran ffmpeg fftw3-dev python-dev build-essential git-core python-setuptools cmake libjpeg62-dev libpng12-dev libblas-dev liblapack-dev libevent-dev')
     with cd(work_dir):
         # Apt Get
         sudo('easy_install numpy scipy pil scons cython')
@@ -37,12 +37,14 @@ def install_opencv():
         sudo('cp  lib/cv.so `python -c "from distutils.sysconfig import get_python_lib; print get_python_lib()"`')
 
 
-def install_data():
-    work_dir = 'data-%f' % time.time()
-    run('mkdir %s' % work_dir)
-    run('mkdir %s/classifier_data' % work_dir)
-    run('s3cmd get --recursive s3://picarus-data %s/classifier_data' % work_dir)
+def install_data(root=''):
+    sudo('apt-get install libevent-dev')
+    sudo('easy_install gevent bottle')
+    work_dir = '%s/data-%f' % (root, time.time())
+    run('mkdir -p %s/classifier_data' % work_dir)
     with cd(work_dir):
+        run('wget http://picarus-data.s3.amazonaws.com/classifier_data.tar')
+        run('tar -xf classifier_data.tar')
         run('hadoop fs -put classifier_data .')
 
 
@@ -51,3 +53,12 @@ def install_git(repo):
     with cd(os.path.basename(repo)):
         run('python setup.py build')
         sudo('python setup.py install')
+
+
+def run_tp():
+    work_dir = 'tp-%f' % time.time()
+    run('mkdir %s' % work_dir)
+    with cd(work_dir):
+        run('git clone https://github.com/bwhite/texas_pete')
+        with cd('texas_pete'):
+            run('python tp_workflow.py')
