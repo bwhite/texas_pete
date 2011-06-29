@@ -315,6 +315,7 @@ def report_clusters_faces_videos(predict_start_time, video_start_time):
 
     shutil.copy(picarus.report.__path__[0] + '/data/static_sample_report.html', local + '/report')
     hadoopy.put(local + '/report', out_root)
+    print('Report output ------------------> [%s/%s]' % (out_root, '/report'))
     return start_time
 
 
