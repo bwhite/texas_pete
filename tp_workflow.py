@@ -1,3 +1,5 @@
+"""Command line interface to the Texas Pete graphics pipeline
+"""
 import hadoopy_flow
 hadoopy_flow.USE_EXISTING = True  # Auto resume existing tasks
 import hadoopy
@@ -6,11 +8,11 @@ import time
 import json
 import shutil
 import os
+import argparse
+import sys
 
 
 # HDFS Paths with data of the form (sha1_hash, record) (see picarus IO docs)
-VIDEO_INPUT_PATH = 'classifier_data/video_record_youtube_action_dataset/'
-IMAGES_INPUT_PATH = 'classifier_data/unlabeled_record_flickr/'
 data_root = 'classifier_data/'
 FEATURE = 'meta_gist_spatial_hist'  # 'hist_joint'
 IMAGE_LENGTH = 64  # 128
@@ -67,8 +69,12 @@ OVERRIDE_VIDEOS_START_TIME = ''
 OVERRIDE_REPORT_START_TIME = ''
 
 
-def make_root(start_time):
-    return 'tp/image_cluster/run-%s/' % start_time
+def make_drive_root(start_time, name):
+    return '/texaspete/data/%s/%s/run-%s/' % (DRIVE_MD5, name, start_time)
+
+
+def make_config_root(start_time, name):
+    return '/texaspete/graphics_config/%s/run-%s/' % (name, start_time)
 
 
 def make_local_root(start_time):
@@ -93,7 +99,7 @@ def train():
     if SKIP_OVERRIDE and OVERRIDE_TRAIN_START_TIME:
         return OVERRIDE_TRAIN_START_TIME
     start_time = OVERRIDE_TRAIN_START_TIME if OVERRIDE_TRAIN_START_TIME else '%f' % time.time()
-    root = make_root(start_time)
+    root = make_config_root(start_time, 'train')
 
     # Compute features for classifier train
     for dk in CLASSIFIERS:
@@ -127,8 +133,8 @@ def train_predict(train_start_time):
     if SKIP_OVERRIDE and OVERRIDE_TRAIN_PREDICT_START_TIME:
         return OVERRIDE_TRAIN_PREDICT_START_TIME
     start_time = OVERRIDE_TRAIN_PREDICT_START_TIME if OVERRIDE_TRAIN_PREDICT_START_TIME else '%f' % time.time()
-    train_root = make_root(train_start_time)
-    root = make_root(start_time)
+    train_root = make_config_root(train_start_time, 'train')
+    root = make_config_root(start_time, 'train_predict')
 
     for dk in CLASSIFIERS:
         d = DATA[dk]
@@ -178,7 +184,7 @@ def _score_train_prediction(pos_pred_path, neg_pred_path, classifier_name):
 
 
 def score_train_predictions(test_start_time):
-    root = make_root(test_start_time)
+    root = make_config_root(test_start_time, 'train_predict')
     results = {}
     for dk in CLASSIFIERS:
         d = DATA[dk]
@@ -193,8 +199,8 @@ def predict(train_start_time, hdfs_record_input_path):
     if SKIP_OVERRIDE and OVERRIDE_PREDICT_START_TIME:
         return OVERRIDE_PREDICT_START_TIME
     start_time = OVERRIDE_PREDICT_START_TIME if OVERRIDE_PREDICT_START_TIME else '%f' % time.time()
-    train_root = make_root(train_start_time)
-    root = make_root(start_time)
+    train_root = make_config_root(train_start_time, 'train')
+    root = make_drive_root(start_time, 'predict')
     # Convert
     hdfs_input_path = '%sdata/input' % root
     picarus.io.run_record_to_kv(hdfs_record_input_path, hdfs_input_path)
@@ -264,7 +270,7 @@ def run_videos(video_input):
     if SKIP_OVERRIDE and OVERRIDE_VIDEOS_START_TIME:
         return OVERRIDE_VIDEOS_START_TIME
     start_time = OVERRIDE_VIDEOS_START_TIME if OVERRIDE_VIDEOS_START_TIME else '%f' % time.time()
-    root = make_root(start_time)
+    root = make_drive_root(start_time, 'video')
     picarus.vision.run_video_keyframe(video_input, root + 'video_keyframe/', min_interval=3.0, resolution=1.0, ffmpeg=True)
 
     # Make the thumbnails (this parallelizes)
@@ -279,10 +285,10 @@ def report_clusters_faces_videos(predict_start_time, video_start_time):
     """
     if SKIP_OVERRIDE and OVERRIDE_REPORT_START_TIME:
         return OVERRIDE_REPORT_START_TIME
-    root = make_root(predict_start_time)
+    root = make_drive_root(predict_start_time, 'predict')
     start_time = OVERRIDE_REPORT_START_TIME if OVERRIDE_REPORT_START_TIME else '%f' % time.time()
-    video_root = make_root(video_start_time)
-    out_root = make_root(start_time)
+    video_root = make_drive_root(video_start_time, 'video')
+    out_root = make_drive_root(start_time, 'report')
     local = make_local_root(start_time)
     clusters = ['indoors', 'nonphotos', 'outdoors', 'objects', 'pr0n']
     clusters += ['faces']
@@ -314,25 +320,52 @@ def report_clusters_faces_videos(predict_start_time, video_start_time):
     shutil.copy(picarus.report.__path__[0] + '/data/static_sample_report.html', local + '/report')
     return start_time
 
-if __name__ == '__main__':
-    train_start_time = OVERRIDE_TRAIN_START_TIME
-    train_predict_start_time = OVERRIDE_TRAIN_PREDICT_START_TIME
-    predict_start_time = OVERRIDE_PREDICT_START_TIME
 
-    train_start_time = train()
+def main():
+    global DRIVE_MD5
+    args = _parser()
+    print(args)
+    DRIVE_MD5 = args.drive_md5
+    video_input_paths = args.video_path
+    graphic_input_paths = args.graphic_path
+    if not args.video_path or not args.graphic_path:
+        raise ValueError('At least one video and one graphic path is required')
+    dump_out = {}
+    if not args.train_start_time:
+        train_start_time = train()
+    else:
+        train_start_time = args['train_start_time']
     print('Ran: TRAIN_START_TIME[%s]' % train_start_time)
-    train_predict_start_time = train_predict(train_start_time)
-    print('Ran: TRAIN_PREDICT_START_TIME[%s]' % train_predict_start_time)
-    test_results = score_train_predictions(train_predict_start_time)
-    video_start_time = run_videos(VIDEO_INPUT_PATH)
+    if args.train_predict:
+        train_predict_start_time = train_predict(train_start_time)
+        print('Ran: TRAIN_PREDICT_START_TIME[%s]' % train_predict_start_time)
+        test_results = score_train_predictions(train_predict_start_time)
+        dump_out['train_predict_start_time'] = train_predict_start_time
+        dump_out['test_results'] = test_results
+    video_start_time = run_videos(video_input_paths)
     print('Ran: VIDEO_START_TIME[%s]' % video_start_time)
-    predict_start_time = predict(train_start_time, IMAGES_INPUT_PATH)
+    predict_start_time = predict(train_start_time, graphic_input_paths)
     print('Ran: PREDICT_START_TIME[%s]' % predict_start_time)
     report_start_time = report_clusters_faces_videos(predict_start_time, video_start_time)
     print('Ran: REPORT_START_TIME[%s]' % report_start_time)
     dump_settings(train_start_time=train_start_time,
-                  train_predict_start_time=train_predict_start_time,
                   video_start_time=video_start_time,
                   predict_start_time=predict_start_time,
-                  report_start_time=report_start_time,
-                  test_results=test_results)
+                  report_start_time=report_start_time, **dump_out)
+
+
+def _parser():
+    parser = argparse.ArgumentParser(description='Texas Pete Graphics Pipeline')
+    parser.add_argument('drive_md5', help='MD5 of the drive (used for placing outputs)')
+    parser.add_argument('--graphic_path', help='HDFS Path to a file or directory of sequence files in the "record" form. (can use multiple)', action='append')
+    parser.add_argument('--video_path', help='HDFS Path to a file or directory of sequence files in the "record" form. (can use multiple)', action='append')
+    parser.add_argument('--train_predict', help='Run the classifiers on testing data', action='store_true')
+    parser.add_argument('--train_start_time', help='If set then use this instead of training a new model')
+    return parser.parse_args()
+
+# Example inputs
+#VIDEO_INPUT_PATH = 'classifier_data/video_record_youtube_action_dataset/'
+#IMAGES_INPUT_PATH = 'classifier_data/unlabeled_record_flickr/'
+
+if __name__ == '__main__':
+    main()
