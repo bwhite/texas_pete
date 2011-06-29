@@ -336,7 +336,7 @@ def main():
             raise ValueError('Training data path needs to be set!')
         train_start_time = train()
     else:
-        train_start_time = args['train_start_time']
+        train_start_time = args.train_start_time
     print('Ran: TRAIN_START_TIME[%s]' % train_start_time)
     if args.train_predict:
         if not data_root:
