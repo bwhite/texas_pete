@@ -13,7 +13,7 @@ import sys
 
 
 # HDFS Paths with data of the form (sha1_hash, record) (see picarus IO docs)
-data_root = 'classifier_data/'
+data_root = None
 FEATURE = 'meta_gist_spatial_hist'  # 'hist_joint'
 IMAGE_LENGTH = 64  # 128
 DATA = {'photos': {'pos': 'photos',
@@ -272,11 +272,6 @@ def run_videos(video_input):
     start_time = OVERRIDE_VIDEOS_START_TIME if OVERRIDE_VIDEOS_START_TIME else '%f' % time.time()
     root = make_drive_root(start_time, 'video')
     picarus.vision.run_video_keyframe(video_input, root + 'video_keyframe/', min_interval=3.0, resolution=1.0, ffmpeg=True)
-
-    # Make the thumbnails (this parallelizes)
-    #for tag in ['photos', 'nonphotos']:
-    #    picarus.report.make_thumbnails(data_root + 'test_' + tag, root + '/thumbs/' + tag, 100)
-    #picarus.report.make_thumbnails(root + 'video_keyframe/keyframes', root + 'video_keyframe/thumbs', 100)
     return start_time
 
 
@@ -322,21 +317,27 @@ def report_clusters_faces_videos(predict_start_time, video_start_time):
 
 
 def main():
-    global DRIVE_MD5
+    global DRIVE_MD5, data_root
     args = _parser()
-    print(args)
     DRIVE_MD5 = args.drive_md5
     video_input_paths = args.video_path
     graphic_input_paths = args.graphic_path
+    data_root = args.training_data
+    if data_root and data_root[-1] != '/':
+        data_root += '/'
     if not args.video_path or not args.graphic_path:
         raise ValueError('At least one video and one graphic path is required')
     dump_out = {}
     if not args.train_start_time:
+        if not data_root:
+            raise ValueError('Training data path needs to be set!')
         train_start_time = train()
     else:
         train_start_time = args['train_start_time']
     print('Ran: TRAIN_START_TIME[%s]' % train_start_time)
     if args.train_predict:
+        if not data_root:
+            raise ValueError('Training data path needs to be set!')
         train_predict_start_time = train_predict(train_start_time)
         print('Ran: TRAIN_PREDICT_START_TIME[%s]' % train_predict_start_time)
         test_results = score_train_predictions(train_predict_start_time)
@@ -361,6 +362,7 @@ def _parser():
     parser.add_argument('--video_path', help='HDFS Path to a file or directory of sequence files in the "record" form. (can use multiple)', action='append')
     parser.add_argument('--train_predict', help='Run the classifiers on testing data', action='store_true')
     parser.add_argument('--train_start_time', help='If set then use this instead of training a new model')
+    parser.add_argument('--training_data', help='Path to training data')
     return parser.parse_args()
 
 
