@@ -62,4 +62,4 @@ def run_tp():
     with cd(work_dir):
         run('git clone https://github.com/bwhite/texas_pete')
         with cd('texas_pete'):
-            run('python tp_workflow.py')
+            run('python tp_workflow.py --video_path classifier_data/video_record_youtube_action_dataset/ --graphic_path classifier_data/unlabeled_record_flickr drivehashhere')

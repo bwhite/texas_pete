@@ -363,9 +363,6 @@ def _parser():
     parser.add_argument('--train_start_time', help='If set then use this instead of training a new model')
     return parser.parse_args()
 
-# Example inputs
-#VIDEO_INPUT_PATH = 'classifier_data/video_record_youtube_action_dataset/'
-#IMAGES_INPUT_PATH = 'classifier_data/unlabeled_record_flickr/'
 
 if __name__ == '__main__':
     main()
