@@ -8,21 +8,21 @@ def install_picarus():
     run('uname -s')
     work_dir = 'picarus-%f' % time.time()
     run('mkdir %s' % work_dir)
-    sudo('apt-get -y install libavcodec-dev libswscale-dev libavformat-dev gfortran ffmpeg fftw3-dev python-dev build-essential git-core python-setuptools cmake libjpeg62-dev libpng12-dev libblas-dev liblapack-dev libevent-dev')
+    sudo('apt-get -y install libavcodec-dev libswscale-dev libavformat-dev gfortran ffmpeg fftw3-dev python-dev build-essential git-core python-setuptools cmake libjpeg62-dev libpng12-dev libblas-dev liblapack-dev libevent-dev python-scipy python-numpy')
     with cd(work_dir):
         # Apt Get
-        sudo('easy_install numpy scipy pil scons cython')
+        sudo('easy_install scons cython gevent bottle pil')
         install_git('https://github.com/amiller/pyffmpeg')
         install_git('https://github.com/bwhite/vidfeat')
         install_git('https://github.com/bwhite/imfeat')
         install_git('https://github.com/bwhite/keyframe')
         install_git('https://github.com/bwhite/classipy')
-        install_git('https://github.com/bwhite/hadoopy')
         install_git('https://github.com/bwhite/impoint')
+        install_git('https://github.com/bwhite/hadoopy')
         install_git('https://github.com/bwhite/hadoopy_flow')
         install_git('https://github.com/bwhite/picarus')
         run('git clone https://github.com/bwhite/texas_pete')
-    install_opencv()
+    #install_opencv()
 
 
 def install_opencv():
@@ -38,8 +38,6 @@ def install_opencv():
 
 
 def install_data(root=''):
-    sudo('apt-get install libevent-dev')
-    sudo('easy_install gevent bottle')
     work_dir = '%s/data-%f' % (root, time.time())
     run('mkdir -p %s/classifier_data' % work_dir)
     with cd(work_dir):
