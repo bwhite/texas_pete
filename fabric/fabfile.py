@@ -11,7 +11,7 @@ def install_picarus():
     sudo('apt-get -y install libavcodec-dev libswscale-dev libavformat-dev gfortran ffmpeg fftw3-dev python-dev build-essential git-core python-setuptools cmake libjpeg62-dev libpng12-dev libblas-dev liblapack-dev libevent-dev python-scipy python-numpy')
     with cd(work_dir):
         # Apt Get
-        sudo('easy_install scons cython gevent bottle pil')
+        sudo('easy_install scons cython gevent bottle pil argparse')
         install_git('https://github.com/amiller/pyffmpeg')
         install_git('https://github.com/bwhite/vidfeat')
         install_git('https://github.com/bwhite/imfeat')
@@ -57,6 +57,9 @@ def install_git(repo):
 
 
 def run_tp():
+    with settings(warn_only=True):
+        sudo('hadoop fs -mkdir /texaspete', user='hdfs')
+        sudo('hadoop fs -chmod 777 /texaspete', user='hdfs')
     work_dir = 'tp-%f' % time.time()
     run('mkdir %s' % work_dir)
     with cd(work_dir):

@@ -14,6 +14,7 @@ import sys
 
 # HDFS Paths with data of the form (sha1_hash, record) (see picarus IO docs)
 data_root = None
+DRIVE_MD5 = None
 FEATURE = 'meta_gist_spatial_hist'  # 'hist_joint'
 IMAGE_LENGTH = 64  # 128
 DATA = {'photos': {'pos': 'photos',
@@ -70,7 +71,7 @@ OVERRIDE_REPORT_START_TIME = ''
 
 
 def make_drive_root(start_time, name):
-    return '/texaspete/data/%s/%s/run-%s/' % (DRIVE_MD5, name, start_time)
+    return '/texaspete/data/%s/dvtp/%s/run-%s/' % (DRIVE_MD5, name, start_time)
 
 
 def make_config_root(start_time, name):
