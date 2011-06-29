@@ -50,7 +50,6 @@ def install_data(root=''):
 def install_git(repo):
     run('git clone %s' % repo)
     with cd(os.path.basename(repo)):
-        run('python setup.py build')
         sudo('python setup.py install')
 
 
