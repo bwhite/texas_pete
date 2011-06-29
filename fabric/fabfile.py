@@ -11,16 +11,7 @@ def install_picarus():
     sudo('apt-get -y install libavcodec-dev libswscale-dev libavformat-dev gfortran ffmpeg fftw3-dev python-dev build-essential git-core python-setuptools cmake libjpeg62-dev libpng12-dev libblas-dev liblapack-dev')
     with cd(work_dir):
         # Apt Get
-        run('wget http://downloads.sourceforge.net/project/opencvlibrary/opencv-unix/2.2/OpenCV-2.2.0.tar.bz2')
-        # OpenCV
-        sudo('easy_install numpy scipy pil scons')
-        run('tar -xjf OpenCV-2.2.0.tar.bz2')
-        run('mkdir OpenCV-2.2.0/build')
-        with cd('OpenCV-2.2.0/build'):
-            run('cmake ..')
-            run('make -j8')
-            sudo('make install')
-            sudo('cp  lib/cv.so `python -c "from distutils.sysconfig import get_python_lib; print get_python_lib()"`')
+        sudo('easy_install numpy scipy pil scons cython')
         install_git('https://github.com/amiller/pyffmpeg')
         install_git('https://github.com/bwhite/vidfeat')
         install_git('https://github.com/bwhite/imfeat')
@@ -31,6 +22,19 @@ def install_picarus():
         install_git('https://github.com/bwhite/hadoopy_flow')
         install_git('https://github.com/bwhite/picarus')
         run('git clone https://github.com/bwhite/texas_pete')
+    install_opencv()
+
+
+def install_opencv():
+    run('wget http://downloads.sourceforge.net/project/opencvlibrary/opencv-unix/2.2/OpenCV-2.2.0.tar.bz2')
+    # OpenCV
+    run('tar -xjf OpenCV-2.2.0.tar.bz2')
+    run('mkdir OpenCV-2.2.0/build')
+    with cd('OpenCV-2.2.0/build'):
+        run('cmake ..')
+        run('make -j8')
+        sudo('make install')
+        sudo('cp  lib/cv.so `python -c "from distutils.sysconfig import get_python_lib; print get_python_lib()"`')
 
 
 def install_data():
