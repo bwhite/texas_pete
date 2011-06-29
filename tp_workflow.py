@@ -320,11 +320,16 @@ if __name__ == '__main__':
     predict_start_time = OVERRIDE_PREDICT_START_TIME
 
     train_start_time = train()
+    print('Ran: TRAIN_START_TIME[%s]' % train_start_time)
     train_predict_start_time = train_predict(train_start_time)
+    print('Ran: TRAIN_PREDICT_START_TIME[%s]' % train_predict_start_time)
     test_results = score_train_predictions(train_predict_start_time)
     video_start_time = run_videos(VIDEO_INPUT_PATH)
+    print('Ran: VIDEO_START_TIME[%s]' % video_start_time)
     predict_start_time = predict(train_start_time, IMAGES_INPUT_PATH)
+    print('Ran: PREDICT_START_TIME[%s]' % predict_start_time)
     report_start_time = report_clusters_faces_videos(predict_start_time, video_start_time)
+    print('Ran: REPORT_START_TIME[%s]' % report_start_time)
     dump_settings(train_start_time=train_start_time,
                   train_predict_start_time=train_predict_start_time,
                   video_start_time=video_start_time,
