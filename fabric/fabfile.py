@@ -36,7 +36,7 @@ def install_picarus():
 def install_data():
     work_dir = 'data-%f' % time.time()
     run('mkdir %s' % work_dir)
-    install_git('s3cmd get --recursive s3://picarus-data %s' % work_dir)
+    run('s3cmd get --recursive s3://picarus-data %s' % work_dir)
 
 
 def install_git(repo):

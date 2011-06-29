@@ -9,9 +9,9 @@ import os
 
 
 # HDFS Paths with data of the form (sha1_hash, record) (see picarus IO docs)
-VIDEO_INPUT_PATH = '/user/brandyn/classifier_data/video_record_videos/'
-IMAGES_INPUT_PATH = '/user/brandyn/classifier_data/unlabeled_record_flickr/'
-data_root = '/user/brandyn/classifier_data/'
+VIDEO_INPUT_PATH = 'classifier_data/video_record_youtube_action_dataset/'
+IMAGES_INPUT_PATH = 'classifier_data/unlabeled_record_flickr/'
+data_root = 'classifier_data/'
 FEATURE = 'meta_gist_spatial_hist'  # 'hist_joint'
 IMAGE_LENGTH = 64  # 128
 DATA = {'photos': {'pos': 'photos',
@@ -60,8 +60,8 @@ NUM_OUTPUT_SAMPLES = 10
 # This is useful if you are adding features near the end of the pipeline and you want to resuse
 # existing output.
 SKIP_OVERRIDE = True
-OVERRIDE_TRAIN_START_TIME = 'run-1309217498.306274'
-OVERRIDE_TRAIN_PREDICT_START_TIME = '1309217833.546531'
+OVERRIDE_TRAIN_START_TIME = ''
+OVERRIDE_TRAIN_PREDICT_START_TIME = ''
 OVERRIDE_PREDICT_START_TIME = ''
 OVERRIDE_VIDEOS_START_TIME = ''
 OVERRIDE_REPORT_START_TIME = ''
@@ -265,7 +265,7 @@ def run_videos(video_input):
         return OVERRIDE_VIDEOS_START_TIME
     start_time = OVERRIDE_VIDEOS_START_TIME if OVERRIDE_VIDEOS_START_TIME else '%f' % time.time()
     root = make_root(start_time)
-    picarus.vision.run_video_keyframe(video_input, root + 'video_keyframe/', 1.0, ffmpeg=True)
+    picarus.vision.run_video_keyframe(video_input, root + 'video_keyframe/', min_interval=3.0, resolution=1.0, ffmpeg=True)
 
     # Make the thumbnails (this parallelizes)
     #for tag in ['photos', 'nonphotos']:
