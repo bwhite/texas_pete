@@ -13,6 +13,8 @@ def install_picarus():
         # Apt Get
         sudo('easy_install scons cython gevent bottle pil argparse')
         install_git('https://github.com/amiller/pyffmpeg')
+        install_git('https://github.com/amiller/static_server')
+        install_git('https://github.com/bwhite/image_server')
         install_git('https://github.com/bwhite/vidfeat')
         install_git('https://github.com/bwhite/imfeat')
         install_git('https://github.com/bwhite/keyframe')
@@ -37,6 +39,12 @@ def install_opencv():
         run('make -j8')
         sudo('make install')
         sudo('cp  lib/cv.so `python -c "from distutils.sysconfig import get_python_lib; print get_python_lib()"`')
+
+
+def make_output(path='/mnt/out'):
+    print('Making [%s] world writable' % path)
+    sudo('mkdir %s' % path)
+    sudo('chmod 777 %s' % path)
 
 
 def install_data(root='.'):
