@@ -1,5 +1,5 @@
 from fabric.api import run, sudo
-from fabric.context_managers import cd
+from fabric.context_managers import cd, settings
 import time
 import os
 
@@ -44,6 +44,8 @@ def install_data(root=''):
     with cd(work_dir):
         run('wget http://picarus-data.s3.amazonaws.com/classifier_data.tar')
         run('tar -xf classifier_data.tar')
+        with settings(warn_only=True):
+            run('hadoop fs -mkdir .')
         run('hadoop fs -put classifier_data .')
 
 
