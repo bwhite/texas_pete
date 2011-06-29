@@ -38,7 +38,7 @@ def install_opencv():
         sudo('cp  lib/cv.so `python -c "from distutils.sysconfig import get_python_lib; print get_python_lib()"`')
 
 
-def install_data(root=''):
+def install_data(root='.'):
     work_dir = '%s/data-%f' % (root, time.time())
     run('mkdir -p %s/classifier_data' % work_dir)
     with cd(work_dir):
