@@ -111,6 +111,6 @@ def use_report(report_start_time, drive_hash):
         sudo('hadoop fs -mkdir /texaspete/data/%s/reports' % drive_hash, user='hdfs')
         sudo('hadoop fs -mkdir /texaspete/data/%s/reports/data/' % drive_hash, user='hdfs')
         sudo('hadoop fs -chmod 777 /texaspete/data/%s/reports/data/' % drive_hash, user='hdfs')
-    root = make_drive_root(drive_hash, report_start_time, 'report') + '/report/'
+    root = make_drive_root(drive_hash, report_start_time, 'report') + '/report/report/'
     sudo('hadoop fs -cp %s/sample_report.js /texaspete/data/%s/reports/data/' % (root, drive_hash), user='hdfs')
     sudo('hadoop fs -cp %s/t /texaspete/data/%s/reports/data/t/' % (root, drive_hash), user='hdfs')
