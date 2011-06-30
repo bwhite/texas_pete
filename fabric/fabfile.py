@@ -76,6 +76,17 @@ def run_tp():
             run('python tp_workflow.py --video_path classifier_data/video_record_youtube_action_dataset/ --graphic_path classifier_data/unlabeled_record_flickr drivehashhere --training_data classifier_data')
 
 
+def install_pretrained():
+    run('wget http://picarus-data.s3.amazonaws.com/run-1309370997.467325-texaspete-graphics_config-train.tar')
+    run('tar -xf run-1309370997.467325-texaspete-graphics_config-train.tar')
+
+    with settings(warn_only=True):
+        sudo('hadoop fs -mkdir /texaspete', user='hdfs')
+        sudo('hadoop fs -mkdir /texaspete/graphics_config', user='hdfs')
+        sudo('hadoop fs -mkdir /texaspete/graphics_config/train', user='hdfs')
+        sudo('hadoop fs -put run-1309370997.467325 /texaspete/graphics_config/train/', user='hdfs')
+
+
 def run_pretrained():
     with settings(warn_only=True):
         sudo('hadoop fs -mkdir /texaspete', user='hdfs')
