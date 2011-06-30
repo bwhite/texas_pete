@@ -4,6 +4,10 @@ import time
 import os
 
 
+def make_drive_root(drive_md5, start_time, name):
+    return '/texaspete/data/%s/dvtp/%s/run-%s/' % (drive_md5, name, start_time)
+
+
 def install_picarus():
     run('uname -s')
     work_dir = 'picarus-%f' % time.time()
@@ -99,7 +103,7 @@ def run_pretrained():
             run('python tp_workflow.py --video_path classifier_data/video_record_youtube_action_dataset/ --graphic_path classifier_data/unlabeled_record_flickr drivehashhere --training_data classifier_data --train_start_time 1309370997.467325')
 
 
-def use_report(tp_start_time, report_start_time, drive_hash):
+def use_report(report_start_time, drive_hash):
     with settings(warn_only=True):
         sudo('hadoop fs -mkdir /texaspete', user='hdfs')
         sudo('hadoop fs -mkdir /texaspete/data', user='hdfs')
@@ -107,7 +111,6 @@ def use_report(tp_start_time, report_start_time, drive_hash):
         sudo('hadoop fs -mkdir /texaspete/data/%s/reports' % drive_hash, user='hdfs')
         sudo('hadoop fs -mkdir /texaspete/data/%s/reports/data/' % drive_hash, user='hdfs')
         sudo('hadoop fs -chmod 777 /texaspete/data/%s/reports/data/' % drive_hash, user='hdfs')
-    sudo('hadoop fs -put tp-%s/texas_pete/out/run-%s/sample_report.js /texaspete/data/%s/reports/data/' % (tp_start_time, report_start_time,
-                                                                                                           drive_hash), user='hdfs')
-    sudo('hadoop fs -put tp-%s/texas_pete/out/run-%s/t /texaspete/data/%s/reports/data/t/' % (tp_start_time, report_start_time,
-                                                                                              drive_hash), user='hdfs')
+    root = make_drive_root(drive_hash, report_start_time, 'report') + '/report/'
+    sudo('hadoop fs -cp %s/sample_report.js /texaspete/data/%s/reports/data/' % (root, drive_hash), user='hdfs')
+    sudo('hadoop fs -cp %s/t /texaspete/data/%s/reports/data/t/' % (root, drive_hash), user='hdfs')
