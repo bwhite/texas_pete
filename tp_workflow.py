@@ -1,7 +1,13 @@
 """Command line interface to the Texas Pete graphics pipeline
+
+TODO: Compute prediction features that will be used, not one for each (which causes dupes)
+TODO: Rewrite so that the thresh predictions code is no longer necessary
 """
-import hadoopy_flow
-hadoopy_flow.USE_EXISTING = True  # Auto resume existing tasks
+USE_FLOW = False  # Set this to True to use Hadoopy Flow, else False
+
+if USE_FLOW:
+    import hadoopy_flow
+    #hadoopy_flow.USE_EXISTING = True  # Auto resume existing tasks
 import hadoopy
 import picarus
 import time
@@ -10,6 +16,12 @@ import shutil
 import os
 import argparse
 import sys
+picarus.GLOBAL_JOBCONFS += ['mapred.map.output.compression.codec=org.apache.hadoop.io.compress.SnappyCodec',
+                            'mapred.compress.map.output=true',
+                            'mapred.output.compress=true',
+                            'mapred.output.compression.codec=org.apache.hadoop.io.compress.SnappyCodec']
+
+IN_MEMORY = False
 
 
 # HDFS Paths with data of the form (sha1_hash, record) (see picarus IO docs)
@@ -34,7 +46,7 @@ DATA = {'photos': {'pos': 'photos',
                     'classifier': 'svmlinear_autotune'},
         'detected_faces': {'pos': 'detected_faces',
                            'neg': 'detected_nonfaces',
-                           'feature': 'meta_hog_gist_hist',
+                           'feature': FEATURE,  # 'meta_hog_gist_hist',
                            'image_length': IMAGE_LENGTH,
                            'classifier': 'svmlinear_autotune'},
         'faces': {'pos': 'faces',
@@ -118,8 +130,9 @@ def train():
         rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
         rpathn = lambda x: '%s%s/%s' % (root, x, d['neg'])
         lpathp = 'tp_%s_labels.js' % d['pos']
+        # NOTE(brandyn): rpathp('labels') was set to None below to force local execution, see docstring
         picarus.classify.run_classifier_labels(rpathp('train_feat'), rpathn('train_feat'),
-                                               rpathp('labels'), d['pos'], '', lpathp, d['classifier'])
+                                               None, d['pos'], '', lpathp, d['classifier'])
     # Train classifiers
     for dk in CLASSIFIERS:
         d = DATA[dk]
@@ -214,23 +227,23 @@ def predict(train_start_time, hdfs_record_input_path):
     picarus.vision.run_image_feature(hdfs_input_path, feat_input_path, d['feature'], d['image_length'])
     picarus.classify.run_predict_classifier(feat_input_path, tpathp('classifiers'), rpathp('predict'))
     # Split images for photos/nonphotos
-    picarus.classify.run_thresh_predictions(rpathp('predict'), hdfs_input_path, rpathp('data'), d['pos'], 0., 1)
-    picarus.classify.run_thresh_predictions(rpathp('predict'), hdfs_input_path, rpathn('data'), d['pos'], 0., -1)
+    picarus.classify.run_thresh_predictions(rpathp('predict'), hdfs_input_path, rpathp('data'), d['pos'], 0., 1, in_memory=IN_MEMORY)
+    picarus.classify.run_thresh_predictions(rpathp('predict'), hdfs_input_path, rpathn('data'), d['pos'], 0., -1, in_memory=IN_MEMORY)
     data_photos_path = rpathp('data')
     # Split features for photos
     feat_photos_path = rpathp('feat')
-    picarus.classify.run_thresh_predictions(rpathp('predict'), feat_input_path, rpathp('feat'), d['pos'], 0., 1)
-    picarus.classify.run_thresh_predictions(rpathp('predict'), feat_input_path, rpathn('feat'), d['pos'], 0., -1)
+    picarus.classify.run_thresh_predictions(rpathp('predict'), feat_input_path, rpathp('feat'), d['pos'], 0., 1, in_memory=IN_MEMORY)
+    picarus.classify.run_thresh_predictions(rpathp('predict'), feat_input_path, rpathn('feat'), d['pos'], 0., -1, in_memory=IN_MEMORY)
     # Predict photo and split images/features for photos subclasses
     for photo_subclass in PHOTOS_SUBCLASSES:
         d = DATA[photo_subclass]
         tpathp = lambda x: '%s%s/%s' % (train_root, x, d['pos'])
         rpathp = lambda x: '%s%s/%s' % (root, x, d['pos'])
         picarus.classify.run_predict_classifier(feat_photos_path, tpathp('classifiers'), rpathp('predict'))
-        picarus.classify.run_thresh_predictions(rpathp('predict'), data_photos_path, rpathp('data'), d['pos'], 0., 1)
-        picarus.classify.run_thresh_predictions(rpathp('predict'), data_photos_path, rpathn('data'), d['pos'], 0., -1)
-        picarus.classify.run_thresh_predictions(rpathp('predict'), feat_photos_path, rpathp('feat'), d['pos'], 0., 1)
-        picarus.classify.run_thresh_predictions(rpathp('predict'), feat_photos_path, rpathn('feat'), d['pos'], 0., -1)
+        picarus.classify.run_thresh_predictions(rpathp('predict'), data_photos_path, rpathp('data'), d['pos'], 0., 1, in_memory=IN_MEMORY)
+        picarus.classify.run_thresh_predictions(rpathp('predict'), data_photos_path, rpathn('data'), d['pos'], 0., -1, in_memory=IN_MEMORY)
+        picarus.classify.run_thresh_predictions(rpathp('predict'), feat_photos_path, rpathp('feat'), d['pos'], 0., 1, in_memory=IN_MEMORY)
+        picarus.classify.run_thresh_predictions(rpathp('predict'), feat_photos_path, rpathn('feat'), d['pos'], 0., -1, in_memory=IN_MEMORY)
     # Find faces (another round of classification after the intial detection)
     d = DATA['detected_faces']
     tpathp = lambda x: '%s%s/%s' % (train_root, x, d['pos'])
@@ -239,7 +252,7 @@ def predict(train_start_time, hdfs_record_input_path):
     picarus.vision.run_face_finder(data_photos_path, rpathp('data'), image_length=d['image_length'], boxes=False)  # Reject more faces first
     picarus.vision.run_image_feature(rpathp('data'), rpathp('feat'), d['feature'], d['image_length'])
     picarus.classify.run_predict_classifier(rpathp('feat'), tpathp('classifiers'), rpathp('predict'))
-    picarus.classify.run_thresh_predictions(rpathp('predict'), rpathp('data'), data_faces_path, d['pos'], 0., 1)
+    picarus.classify.run_thresh_predictions(rpathp('predict'), rpathp('data'), data_faces_path, d['pos'], 0., 1, in_memory=IN_MEMORY)
     # Compute the eigenface feature
     d = DATA['faces']
     tpathp = lambda x: '%s%s/%s' % (train_root, x, d['pos'])
@@ -247,7 +260,8 @@ def predict(train_start_time, hdfs_record_input_path):
     picarus.vision.run_image_feature(data_faces_path, rpathp('feat'), d['feature'], d['image_length'])
     # Sample for initial clusters
     cluster(root)
-    hadoopy_flow.joinall()  # We join here as later jobs use the result of these greenlets
+    if USE_FLOW:
+        hadoopy_flow.joinall()  # We join here as later jobs use the result of these greenlets
     return start_time
 
 
@@ -262,8 +276,12 @@ def cluster(root):
             picarus.cluster.run_whiten(pols[p]('feat'), pols[p]('whiten'))
             picarus.cluster.run_sample(pols[p]('whiten'), pols[p]('cluster') + '/local_sample', NUM_LOCAL_SAMPLES)
             picarus.cluster.run_local_kmeans(pols[p]('cluster') + '/local_sample', pols[p]('cluster') + '/clust0', NUM_CLUSTERS)
-            hadoopy_flow.Greenlet(picarus.cluster.run_kmeans, pols[p]('whiten'), pols[p]('cluster') + '/clust0', pols[p]('data'),
-                                  pols[p]('cluster'), NUM_CLUSTERS, NUM_ITERS, NUM_OUTPUT_SAMPLES, 'l2sqr').start()
+            if USE_FLOW:
+                hadoopy_flow.Greenlet(picarus.cluster.run_kmeans, pols[p]('whiten'), pols[p]('cluster') + '/clust0', pols[p]('data'),
+                                      pols[p]('cluster'), NUM_CLUSTERS, NUM_ITERS, NUM_OUTPUT_SAMPLES, 'l2sqr').start()
+            else:
+                picarus.cluster.run_kmeans(pols[p]('whiten'), pols[p]('cluster') + '/clust0', pols[p]('data'),
+                                           pols[p]('cluster'), NUM_CLUSTERS, NUM_ITERS, NUM_OUTPUT_SAMPLES, 'l2sqr')
             print('Done Clustering[%s]' % d[p])
 
 

@@ -60,7 +60,7 @@ def install_data(root='.'):
         with settings(warn_only=True):
             run('hadoop fs -mkdir .')
         run('hadoop fs -put classifier_data .')
-
+        
 
 def install_git(repo):
     run('git clone %s' % repo)
