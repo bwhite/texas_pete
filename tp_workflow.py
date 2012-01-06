@@ -17,7 +17,7 @@ picarus.GLOBAL_JOBCONFS += ['mapred.map.output.compression.codec=org.apache.hado
                             'mapred.compress.map.output=true',
                             'mapred.output.compress=true',
                             'mapred.output.compression.codec=org.apache.hadoop.io.compress.SnappyCodec']
-
+# 'mapred.child.java.opts=-Xmx512M'
 
 # HDFS Paths with data of the form (sha1_hash, record) (see picarus IO docs)
 data_root = None

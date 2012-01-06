@@ -14,7 +14,9 @@ def make_output(path='/mnt/out'):
     sudo('chmod 777 %s' % path)
 
 
-def install_data(root='.'):
+def install_data(root='/mnt/out/'):
+    with settings(warn_only=True):
+        make_output()
     work_dir = '%s/data-%f' % (root, time.time())
     run('mkdir -p %s/classifier_data' % work_dir)
     with cd(work_dir):
@@ -58,6 +60,18 @@ def run_pretrained():
         run('git clone https://github.com/bwhite/texas_pete')
         with cd('texas_pete'):
             run('python tp_workflow.py --video_path classifier_data/video_record_youtube_action_dataset/ --graphic_path classifier_data/unlabeled_record_flickr drivehashhere --training_data classifier_data --train_start_time 1309370997.467325')
+
+
+def run_all():
+    with settings(warn_only=True):
+        sudo('hadoop fs -mkdir /texaspete', user='hdfs')
+        sudo('hadoop fs -chmod 777 /texaspete', user='hdfs')
+    work_dir = 'tp-%f' % time.time()
+    run('mkdir %s' % work_dir)
+    with cd(work_dir):
+        run('git clone https://github.com/bwhite/texas_pete')
+        with cd('texas_pete'):
+            run('python tp_workflow.py --video_path classifier_data/video_record_youtube_action_dataset/ --graphic_path classifier_data/unlabeled_record_flickr drivehashhere --training_data classifier_data')
 
 
 def use_report(report_start_time, drive_hash):
