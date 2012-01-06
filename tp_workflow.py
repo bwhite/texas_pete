@@ -1,7 +1,4 @@
 """Command line interface to the Texas Pete graphics pipeline
-
-TODO: Compute prediction features that will be used, not one for each (which causes dupes)
-TODO: Rewrite so that the thresh predictions code is no longer necessary
 """
 USE_FLOW = False  # Set this to True to use Hadoopy Flow, else False
 
@@ -20,8 +17,6 @@ picarus.GLOBAL_JOBCONFS += ['mapred.map.output.compression.codec=org.apache.hado
                             'mapred.compress.map.output=true',
                             'mapred.output.compress=true',
                             'mapred.output.compression.codec=org.apache.hadoop.io.compress.SnappyCodec']
-
-IN_MEMORY = False
 
 
 # HDFS Paths with data of the form (sha1_hash, record) (see picarus IO docs)
@@ -66,9 +61,9 @@ CLUSTERS = [('photos', ['pos', 'neg']), ('indoors', ['pos', 'neg']),
 PHOTOS_SUBCLASSES = ['indoors', 'objects', 'pr0n']  # Each of these are derived from predicted photos
 
 # Clustering parameters
-NUM_LOCAL_SAMPLES = 5000
+NUM_LOCAL_SAMPLES = 100000
 NUM_CLUSTERS = 20
-NUM_ITERS = 1
+NUM_ITERS = 0
 NUM_OUTPUT_SAMPLES = 10
 
 # Start time overrides: If they are non-empty, then use them instead of the current time.
@@ -280,8 +275,9 @@ def cluster(root, class_image_hashes, class_image_paths):
             picarus.cluster.run_sample(pols[p]('whiten'), pols[p]('cluster') + '/local_sample', NUM_LOCAL_SAMPLES)
             picarus.cluster.run_local_kmeans(pols[p]('cluster') + '/local_sample', pols[p]('cluster') + '/clust0', NUM_CLUSTERS)
             if USE_FLOW:
-                hadoopy_flow.Greenlet(picarus.cluster.run_kmeans, pols[p]('whiten'), pols[p]('cluster') + '/clust0', pols[p]('data'),
-                                      pols[p]('cluster'), NUM_CLUSTERS, NUM_ITERS, NUM_OUTPUT_SAMPLES, 'l2sqr').start()
+                hadoopy_flow.Greenlet(picarus.cluster.run_kmeans, pols[p]('whiten'), pols[p]('cluster') + '/clust0', class_image_paths[dk][0],
+                                      pols[p]('cluster'), NUM_CLUSTERS, NUM_ITERS, NUM_OUTPUT_SAMPLES, 'l2sqr',
+                                      image_hashes=class_image_hashes[dk][int(p == 'pos')]).start()
             else:
                 picarus.cluster.run_kmeans(pols[p]('whiten'), pols[p]('cluster') + '/clust0', class_image_paths[dk][0],
                                            pols[p]('cluster'), NUM_CLUSTERS, NUM_ITERS, NUM_OUTPUT_SAMPLES, 'l2sqr',
@@ -368,16 +364,16 @@ def main():
         test_results = score_train_predictions(train_predict_start_time)
         dump_out['train_predict_start_time'] = train_predict_start_time
         dump_out['test_results'] = test_results
-    #video_start_time = run_videos(video_input_paths)
+    video_start_time = run_videos(video_input_paths)
     #print('Ran: VIDEO_START_TIME[%s]' % video_start_time)
     predict_start_time = predict(train_start_time, graphic_input_paths)
     print('Ran: PREDICT_START_TIME[%s]' % predict_start_time)
-    #report_start_time = report_clusters_faces_videos(predict_start_time, video_start_time)
-    #print('Ran: REPORT_START_TIME[%s]' % report_start_time)
-    #dump_settings(train_start_time=train_start_time,
-    #              video_start_time=video_start_time,
-    #              predict_start_time=predict_start_time,
-    #              report_start_time=report_start_time, **dump_out)
+    report_start_time = report_clusters_faces_videos(predict_start_time, video_start_time)
+    print('Ran: REPORT_START_TIME[%s]' % report_start_time)
+    dump_settings(train_start_time=train_start_time,
+                  video_start_time=video_start_time,
+                  predict_start_time=predict_start_time,
+                  report_start_time=report_start_time, **dump_out)
 
 
 def _parser():
