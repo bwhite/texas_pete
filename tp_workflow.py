@@ -61,7 +61,7 @@ CLUSTERS = [('photos', ['pos', 'neg']), ('indoors', ['pos', 'neg']),
 PHOTOS_SUBCLASSES = ['indoors', 'objects', 'pr0n']  # Each of these are derived from predicted photos
 
 # Clustering parameters
-NUM_LOCAL_SAMPLES = 100000
+NUM_LOCAL_SAMPLES = 10000
 NUM_CLUSTERS = 20
 NUM_ITERS = 0
 NUM_OUTPUT_SAMPLES = 10
