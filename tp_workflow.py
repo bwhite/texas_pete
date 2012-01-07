@@ -1,6 +1,6 @@
 """Command line interface to the Texas Pete graphics pipeline
 """
-USE_FLOW = False  # Set this to True to use Hadoopy Flow, else False
+USE_FLOW = True  # Set this to True to use Hadoopy Flow, else False
 
 if USE_FLOW:
     import hadoopy_flow
@@ -127,7 +127,7 @@ def train():
         lpathp = 'tp_%s_labels.js' % d['pos']
         # NOTE(brandyn): rpathp('labels') was set to None below to force local execution, see docstring
         picarus.classify.run_classifier_labels(rpathp('train_feat'), rpathn('train_feat'),
-                                               None, d['pos'], '', lpathp, d['classifier'])
+                                               rpathp('labels'), d['pos'], '', lpathp, d['classifier'])
     # Train classifiers
     for dk in CLASSIFIERS:
         d = DATA[dk]
