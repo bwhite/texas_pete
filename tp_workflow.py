@@ -61,7 +61,7 @@ CLUSTERS = [('photos', ['pos', 'neg']), ('indoors', ['pos', 'neg']),
 PHOTOS_SUBCLASSES = ['indoors', 'objects', 'pr0n']  # Each of these are derived from predicted photos
 
 # Clustering parameters
-NUM_LOCAL_SAMPLES = 10000
+NUM_LOCAL_SAMPLES = 1000
 NUM_CLUSTERS = 20
 NUM_ITERS = 0
 NUM_OUTPUT_SAMPLES = 10
@@ -365,7 +365,7 @@ def main():
         dump_out['train_predict_start_time'] = train_predict_start_time
         dump_out['test_results'] = test_results
     video_start_time = run_videos(video_input_paths)
-    #print('Ran: VIDEO_START_TIME[%s]' % video_start_time)
+    print('Ran: VIDEO_START_TIME[%s]' % video_start_time)
     predict_start_time = predict(train_start_time, graphic_input_paths)
     print('Ran: PREDICT_START_TIME[%s]' % predict_start_time)
     report_start_time = report_clusters_faces_videos(predict_start_time, video_start_time)
