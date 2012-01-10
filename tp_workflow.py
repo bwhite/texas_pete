@@ -290,7 +290,7 @@ def run_videos(video_input):
         return OVERRIDE_VIDEOS_START_TIME
     start_time = OVERRIDE_VIDEOS_START_TIME if OVERRIDE_VIDEOS_START_TIME else '%f' % time.time()
     root = make_drive_root(start_time, 'video')
-    picarus.vision.run_video_keyframe(video_input, root + 'video_keyframe/', min_interval=3.0, resolution=1.0, ffmpeg=True)
+    picarus.vision.run_video_keyframe(video_input, root + 'video_keyframe/', min_interval=30.0, resolution=600.0, ffmpeg=True)
     return start_time
 
 
